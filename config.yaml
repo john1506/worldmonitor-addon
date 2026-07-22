@@ -1,0 +1,28 @@
+---
+name: "World Monitor"
+version: "1.0.0"
+slug: "worldmonitor"
+description: "Self-hosted real-time geopolitical, financial & climate intelligence dashboard (koala73/worldmonitor)"
+url: "https://github.com/koala73/worldmonitor"
+image: "ghcr.io/john1506/worldmonitor-addon"
+arch:
+  - aarch64
+init: false
+startup: application
+boot: auto
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:earth
+panel_title: "World Monitor"
+map: []
+options:
+  groq_api_key: ""
+  openrouter_api_key: ""
+  seed_interval_minutes: 30
+  extra_env: []
+schema:
+  groq_api_key: "password?"
+  openrouter_api_key: "password?"
+  seed_interval_minutes: "int(5,1440)"
+  extra_env:
+    - "str"
