@@ -22,7 +22,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: version
-        run: echo "version=$(grep '^version:' config.yaml | sed -E 's/version: *\"?([^\"]+)\"?/\1/')" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(grep '^version:' config.yaml | cut -d '"' -f2)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
 
