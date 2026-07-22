@@ -29,8 +29,13 @@ RUN npm ci --ignore-scripts
 # Compile TypeScript API handlers → self-contained ESM bundles
 RUN node docker/build-handlers.mjs
 
-# Build the crawlable static corpus and Vite frontend (outputs to dist/)
-RUN npm run build:crawlable-corpus && npm run build:content-corpus && npx tsc && npx vite build
+# Build the crawlable static corpus and Vite frontend (outputs to dist/).
+# --base ./ emits relative asset paths (assets/foo.js instead of /assets/foo.js).
+# Required for HA Ingress: the dashboard is loaded inside an iframe rooted at
+# /api/hassio_ingress/<token>/, and an absolute path resolves against the HA
+# frontend's own origin root, not back through the ingress proxy to us — so
+# every JS/CSS asset 404s and the app never gets past its own loading skeleton.
+RUN npm run build:crawlable-corpus && npm run build:content-corpus && npx tsc && npx vite build --base ./
 
 # ── Stage 2: Runtime dependencies for the raw (unbundled) API handlers ──────
 FROM ${NODE_BASE} AS runtime-deps
