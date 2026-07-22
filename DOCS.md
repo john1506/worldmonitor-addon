@@ -26,8 +26,8 @@ panels while the seed loop repopulates the cache.
 
 | Option | Purpose |
 |---|---|
-| `groq_api_key` | Free at https://console.groq.com — powers AI intelligence-assessment summaries |
-| `openrouter_api_key` | Optional second LLM provider (free tier, 50 req/day) — also the only way to route summaries through an Anthropic Claude model (see below) |
+| `groq_api_key` | Free at https://console.groq.com — optional fallback LLM provider (see below for the primary path) |
+| `openrouter_api_key` | Free at https://openrouter.ai — the primary LLM provider for this add-on's default config (see below) |
 | `seed_interval_minutes` | How often to re-run the seed scripts (default 30) |
 | `extra_env` | List of `KEY=VALUE` strings for any other upstream env var |
 
@@ -58,20 +58,21 @@ separate call "profiles", each independently overridable:
 | **tool** | Cheap/fast extraction & parsing | Groq, `llama-3.3-70b-versatile` | `LLM_TOOL_PROVIDER`, `LLM_TOOL_MODEL` |
 | **reasoning** | Synthesis / intelligence-assessment writeups | OpenRouter, `deepseek/deepseek-v4-flash` | `LLM_REASONING_PROVIDER`, `LLM_REASONING_MODEL` |
 
-**To route a Claude model through OpenRouter** (there's no direct Anthropic key path),
-set `openrouter_api_key` plus `extra_env` entries pointing a profile at it, e.g. to use
-Claude Haiku 4.5 for the fast/tool profile:
+**This add-on is configured to run both profiles on `nvidia/nemotron-3-super-120b-a12b:free`
+via OpenRouter** — a free-tier 120B model, confirmed against OpenRouter's own
+`/api/v1/models` listing. Set `openrouter_api_key`, then add:
 
 ```yaml
 extra_env:
   - "LLM_TOOL_PROVIDER=openrouter"
-  - "LLM_TOOL_MODEL=anthropic/claude-haiku-4.5"
+  - "LLM_TOOL_MODEL=nvidia/nemotron-3-super-120b-a12b:free"
+  - "LLM_REASONING_PROVIDER=openrouter"
+  - "LLM_REASONING_MODEL=nvidia/nemotron-3-super-120b-a12b:free"
 ```
 
-(Model slug confirmed against OpenRouter's own `/api/v1/models` listing.) Haiku is a
-good fit for the tool profile's high-volume, low-complexity extraction work; if you
-also want Claude on the reasoning profile's synthesis writeups, a heavier model (e.g.
-`anthropic/claude-sonnet-4.5`) reads better there than Haiku.
+`groq_api_key` becomes optional at that point — the profile's provider chain still
+falls back to Groq (then a generic endpoint) if OpenRouter/nemotron errors or rate-limits,
+so it's worth keeping set as a safety net even though it's no longer the primary path.
 
 ## Access
 
