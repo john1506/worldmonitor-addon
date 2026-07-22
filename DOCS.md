@@ -27,7 +27,7 @@ panels while the seed loop repopulates the cache.
 | Option | Purpose |
 |---|---|
 | `groq_api_key` | Free at https://console.groq.com — powers AI intelligence-assessment summaries |
-| `openrouter_api_key` | Optional fallback LLM provider (free tier, 50 req/day) |
+| `openrouter_api_key` | Optional second LLM provider (free tier, 50 req/day) — also the only way to route summaries through an Anthropic Claude model (see below) |
 | `seed_interval_minutes` | How often to re-run the seed scripts (default 30) |
 | `extra_env` | List of `KEY=VALUE` strings for any other upstream env var |
 
@@ -46,6 +46,33 @@ extra_env:
   - "ACLED_PASSWORD=..."
 ```
 
+### Which LLM actually answers a given call
+
+There is no `ANTHROPIC_API_KEY` support in the app — its summarization code
+(`server/_shared/llm.ts`) only talks to Ollama, OpenRouter, Groq, or a generic
+OpenAI-compatible endpoint (`LLM_API_URL`), in that order by default. There are two
+separate call "profiles", each independently overridable:
+
+| Profile | Used for | Default provider / model | Override env vars |
+|---|---|---|---|
+| **tool** | Cheap/fast extraction & parsing | Groq, `llama-3.3-70b-versatile` | `LLM_TOOL_PROVIDER`, `LLM_TOOL_MODEL` |
+| **reasoning** | Synthesis / intelligence-assessment writeups | OpenRouter, `deepseek/deepseek-v4-flash` | `LLM_REASONING_PROVIDER`, `LLM_REASONING_MODEL` |
+
+**To route a Claude model through OpenRouter** (there's no direct Anthropic key path),
+set `openrouter_api_key` plus `extra_env` entries pointing a profile at it, e.g. to use
+Claude Haiku 4.5 for the fast/tool profile:
+
+```yaml
+extra_env:
+  - "LLM_TOOL_PROVIDER=openrouter"
+  - "LLM_TOOL_MODEL=anthropic/claude-haiku-4.5"
+```
+
+(Model slug confirmed against OpenRouter's own `/api/v1/models` listing.) Haiku is a
+good fit for the tool profile's high-volume, low-complexity extraction work; if you
+also want Claude on the reasoning profile's synthesis writeups, a heavier model (e.g.
+`anthropic/claude-sonnet-4.5`) reads better there than Haiku.
+
 ## Access
 
 This add-on uses Ingress — open it from the Home Assistant sidebar ("World Monitor"),
@@ -63,8 +90,9 @@ container doesn't have the Supervisor's `/addons/local` folder mounted. To insta
    ```
 2. In Home Assistant: **Settings → Add-ons → Add-on Store → ⋮ (top right) → Check for
    updates** (or reload the page) — "World Monitor" should appear under "Local add-ons".
-3. Click it → **Install**. The first build compiles the frontend from source (a few
-   minutes) — subsequent starts are fast.
+3. Click it → **Install**. `config.yaml` points at a prebuilt image
+   (`ghcr.io/john1506/worldmonitor-addon`), so this just pulls it — no on-device build,
+   no waiting on npm/vite.
 4. Set your `groq_api_key` (and any `extra_env` keys you want) under the **Configuration**
    tab, then **Start**.
 5. Give the seed loop a few minutes on first start, then open "World Monitor" from the
@@ -72,6 +100,10 @@ container doesn't have the Supervisor's `/addons/local` folder mounted. To insta
 
 ## Source
 
-Built from https://github.com/koala73/worldmonitor, pinned to commit
-`396efb905fadda74c4ae77080a1e72658c37aa0e`. Update the `WORLDMONITOR_REF` build arg in
-the Dockerfile and rebuild to pick up newer upstream commits.
+The add-on packaging itself lives at https://github.com/john1506/worldmonitor-addon —
+its `.github/workflows/build.yml` rebuilds and pushes the image to GHCR on every push to
+`main`. The Dockerfile it builds clones and compiles
+https://github.com/koala73/worldmonitor from source, pinned to commit
+`396efb905fadda74c4ae77080a1e72658c37aa0e` (the `WORLDMONITOR_REF` build arg). Bump that
+arg and push to pick up newer upstream commits — GitHub Actions rebuilds and re-pushes
+automatically; the Pi only ever pulls the finished image.
