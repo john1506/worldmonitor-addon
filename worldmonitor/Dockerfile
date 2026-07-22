@@ -83,7 +83,11 @@ RUN chown -R appuser:appgroup /app /tmp/nginx-client-body /tmp/nginx-proxy \
     /tmp/nginx-fastcgi /tmp/nginx-uwsgi /tmp/nginx-scgi /var/log/supervisor \
     /var/lib/nginx /var/log/nginx
 
-USER appuser
+# Stays root: HA Supervisor mounts /data/options.json root-only (0600), and
+# entrypoint.sh must read it via jq before anything else starts. Running the
+# whole container as root is standard practice for HA add-ons (Supervisor's
+# isolation model doesn't rely on in-container UID separation), and sidesteps
+# needing gosu/su-exec just to read one config file as a different user.
 
 EXPOSE 8080
 
