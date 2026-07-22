@@ -79,19 +79,12 @@ so it's worth keeping set as a safety net even though it's no longer the primary
 This add-on uses Ingress — open it from the Home Assistant sidebar ("World Monitor"),
 no separate port or login needed.
 
-## Installing (local add-on)
+## Installing (custom repository)
 
-This folder was staged at `/share/worldmonitor-addon` because the Claude Code add-on
-container doesn't have the Supervisor's `/addons/local` folder mounted. To install it:
-
-1. Copy this whole folder into your `addons/local/worldmonitor` directory — e.g. via
-   the Samba share add-on, the Studio Code Server add-on, or SSH:
-   ```bash
-   cp -r /share/worldmonitor-addon /addons/local/worldmonitor
-   ```
-2. In Home Assistant: **Settings → Add-ons → Add-on Store → ⋮ (top right) → Check for
-   updates** (or reload the page) — "World Monitor" should appear under "Local add-ons".
-3. Click it → **Install**. `config.yaml` points at a prebuilt image
+1. In Home Assistant: **Settings → Add-ons → Add-on Store**
+2. **⋮ (top right) → Repositories** → add `https://github.com/john1506/worldmonitor-addon`
+3. "World Monitor" appears in the store under this repository. Click it → **Install**.
+   `config.yaml` points at a prebuilt image
    (`ghcr.io/john1506/worldmonitor-addon`), so this just pulls it — no on-device build,
    no waiting on npm/vite.
 4. Set your `groq_api_key` (and any `extra_env` keys you want) under the **Configuration**

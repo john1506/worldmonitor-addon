@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - Dockerfile
-      - rootfs/**
+      - worldmonitor/Dockerfile
+      - worldmonitor/rootfs/**
       - .github/workflows/build.yml
   workflow_dispatch: {}
 
@@ -23,7 +23,7 @@ jobs:
 
       - id: version
         run: |
-          version=$(grep '^version:' config.yaml | cut -d '"' -f2)
+          version=$(grep '^version:' worldmonitor/config.yaml | cut -d '"' -f2)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
@@ -38,7 +38,7 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./worldmonitor
           platforms: linux/arm64
           push: true
           tags: |
