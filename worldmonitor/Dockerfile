@@ -73,6 +73,17 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # not the trimmed runtime-deps set used by the raw API handlers above).
 COPY --from=builder /app /app/seed
 
+# Two upstream seeders exist but never run in self-hosted mode:
+#  - scripts/fetch-gpsjam.mjs fetches gpsjam.org (free, no auth) but isn't
+#    named seed-*.mjs, so seed-loop.sh's glob (run-seeders.sh) skips it.
+#  - satellite TLE seeding only exists inside scripts/ais-relay.cjs (the
+#    Railway relay service, which this add-on intentionally omits) — no
+#    seed-*.mjs equivalent ships upstream at all.
+# Both fetch from free/no-key public sources (gpsjam.org, celestrak.org).
+# The satellite one is adapted from ais-relay.cjs's seedSatelliteTLEs() to
+# the standalone seed-*.mjs convention so it needs no relay/API key either.
+COPY rootfs/seed-scripts/seed-gpsjam.mjs rootfs/seed-scripts/seed-satellites.mjs /app/seed/scripts/
+
 # Redis REST proxy (Upstash-compatible shim upstream wrote themselves)
 COPY --from=redis-rest-deps /app /app/redis-rest
 
