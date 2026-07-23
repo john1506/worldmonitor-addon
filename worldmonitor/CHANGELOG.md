@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.4
+
+- Fix: 3D globe view never rendered under Ingress (worked fine on production/
+  worldmonitor.app). `globe-render-settings.ts` hardcodes its earth-texture
+  paths as an absolute `/textures/...` string literal — not a Vite-tracked
+  asset reference, so the 1.0.2 `--base ./` fix didn't touch it. Under Ingress
+  that absolute path resolves against the HA frontend's own origin root and
+  never reaches this add-on (confirmed zero `/textures/` requests ever hit
+  this container's nginx log, while the JS defining the path loaded fine
+  every time — it silently fetched from the wrong origin). Only worked on
+  production because that's served from the domain root. Patched post-build
+  to the same `import.meta.url`-relative pattern already used correctly
+  elsewhere in this codebase for Worker construction, which resolves right
+  regardless of ingress path nesting depth.
+
 ## 1.0.3
 
 - Fix: GPS-jamming layer and satellite tracking layer never had data to show.

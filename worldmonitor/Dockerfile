@@ -37,6 +37,26 @@ RUN node docker/build-handlers.mjs
 # every JS/CSS asset 404s and the app never gets past its own loading skeleton.
 RUN npm run build:crawlable-corpus && npm run build:content-corpus && npx tsc && npx vite build --base ./
 
+# globe-render-settings.ts hardcodes its earth-texture paths as absolute
+# ("/textures/earth-blue-marble.jpg") — a runtime string literal, not a
+# Vite-tracked asset reference, so --base ./ above doesn't touch it. Under
+# Ingress that absolute path resolves against the HA frontend's own origin
+# root and never reaches this add-on (confirmed: zero /textures/ requests
+# ever hit this container's nginx access log, while the JS chunk that
+# defines it loaded fine every time — the fetch just goes to the wrong
+# origin and silently fails). Works on production only because it's served
+# from the domain root, where the absolute path happens to resolve right.
+# Patch to the same import.meta.url-relative pattern already used
+# correctly elsewhere in this codebase for Worker construction, which
+# resolves correctly regardless of ingress path nesting depth.
+RUN for f in dist/assets/globe-render-settings-*.js; do \
+      sed -i \
+        -e 's#"/textures/\([^"]*\)"#new URL("../textures/\1",import.meta.url).href#g' \
+        "$f"; \
+      grep -q 'textures/earth-blue-marble.jpg",import.meta.url).href' "$f" || \
+        (echo "ERROR: globe texture path patch did not apply — upstream source changed, needs re-check" >&2 && exit 1); \
+    done
+
 # ── Stage 2: Runtime dependencies for the raw (unbundled) API handlers ──────
 FROM ${NODE_BASE} AS runtime-deps
 WORKDIR /app
