@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.8
+
+- Remove the free-tier 80-source / 40-panel display cap. `enforceFreeTierLimits()`
+  in the frontend disables sources/panels over those counts whenever it doesn't
+  detect a Pro/entitlement subscription — a purely client-side check, no server
+  call involved. Since this add-on runs its own complete data pipeline (own
+  Redis, own seeders, own compute), the sources it was hiding are ones we
+  already fetch ourselves at our own cost — not something worldmonitor.app
+  serves or pays for. Patched post-build to make `enforceFreeTierLimits()`
+  always return immediately, the same way the ingress/texture fixes patch
+  compiled output rather than touching build config. Does not touch (and
+  cannot unlock) the genuinely paywalled endpoints — risk-scores, security
+  advisories, AI insights, etc. — those require real api.worldmonitor.app
+  credentials this add-on doesn't have and won't attempt to bypass.
+
 ## 1.0.7
 
 - Fix: after updating to 1.0.6, some previously-public endpoints (news

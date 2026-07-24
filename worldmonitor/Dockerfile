@@ -76,6 +76,22 @@ RUN node /tmp/ingress-api-patch.mjs dist/dashboard.html && \
     grep -q 'data-wm-ingress-api-patch' dist/dashboard.html || \
       (echo "ERROR: ingress API-path patch did not apply" >&2 && exit 1)
 
+# enforceFreeTierLimits() caps displayed news sources/panels (80 sources,
+# 40 panels) unless a Pro/entitlement check passes — client-side only, no
+# server call, gating sources this self-hosted deployment already fetches
+# into its own Redis at its own cost (unlike the genuinely paywalled
+# risk-scores/security-advisories/AI-insights endpoints, which stay
+# untouched since those need real api.worldmonitor.app credentials this
+# add-on can't obtain). Since we run our own full data pipeline, not
+# worldmonitor.app's, this cap serves no purpose here. Neutralizes just the
+# `if(mt())return;` guard call (not mt()'s definition, which is used
+# elsewhere) so enforceFreeTierLimits() always bails out immediately.
+RUN for f in dist/assets/main-*.js; do \
+      grep -q '}if(mt())return;let t=Ce(Z.panels' "$f" || \
+        (echo "ERROR: free-tier guard anchor not found — upstream source changed, needs re-check" >&2 && exit 1); \
+      sed -i 's#}if(mt())return;let t=Ce(Z\.panels#}if(!0)return;let t=Ce(Z.panels#' "$f"; \
+    done
+
 # ── Stage 2: Runtime dependencies for the raw (unbundled) API handlers ──────
 FROM ${NODE_BASE} AS runtime-deps
 WORKDIR /app
