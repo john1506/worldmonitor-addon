@@ -12,8 +12,20 @@ if [ -f "$OPTIONS" ]; then
   GROQ_API_KEY="$(json_str groq_api_key)"
   OPENROUTER_API_KEY="$(json_str openrouter_api_key)"
   AISSTREAM_API_KEY="$(json_str aisstream_api_key)"
+  # These five all already have working seed-*.mjs scripts shipped upstream
+  # (they run every seed cycle regardless) — they've just been silently
+  # failing/skipping this whole time with no key configured. No new seeders
+  # or Dockerfile changes needed, just wiring the option through.
+  NASA_FIRMS_API_KEY="$(json_str nasa_firms_api_key)"
+  UCDP_ACCESS_TOKEN="$(json_str ucdp_access_token)"
+  EIA_API_KEY="$(json_str eia_api_key)"
+  FRED_API_KEY="$(json_str fred_api_key)"
+  OPENSKY_CLIENT_ID="$(json_str opensky_client_id)"
+  OPENSKY_CLIENT_SECRET="$(json_str opensky_client_secret)"
   SEED_INTERVAL_MINUTES="$(jq -r '.seed_interval_minutes // 30' "$OPTIONS")"
-  export GROQ_API_KEY OPENROUTER_API_KEY AISSTREAM_API_KEY
+  export GROQ_API_KEY OPENROUTER_API_KEY AISSTREAM_API_KEY \
+    NASA_FIRMS_API_KEY UCDP_ACCESS_TOKEN EIA_API_KEY FRED_API_KEY \
+    OPENSKY_CLIENT_ID OPENSKY_CLIENT_SECRET
 
   # extra_env: list of "KEY=VALUE" strings for anything not exposed as its
   # own option (NASA_FIRMS_API_KEY, FINNHUB_API_KEY, ACLED_*, etc. — see

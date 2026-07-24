@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.1
+
+- Add options for five more free data-source keys, all backing seed-*.mjs
+  scripts that already ship upstream and already run every seed cycle —
+  they've just been silently skipping with no key configured, no new
+  seeders or Dockerfile changes needed:
+  - `nasa_firms_api_key` — fire detections (NASA FIRMS, free registration;
+    `seed-fire-detections.mjs` exits non-zero without it)
+  - `ucdp_access_token` — armed conflict events (Uppsala Conflict Data
+    Program, free registration since 2025)
+  - `eia_api_key` — oil price/production/inventory (US EIA, instant free key)
+  - `fred_api_key` — Federal Reserve economic data, feeds four separate
+    macro seeders (instant free key)
+  - `opensky_client_id` / `opensky_client_secret` — OAuth2 credentials for
+    higher OpenSky rate limits; likely the actual cause of the recurring
+    "Military Flight Tracking Failed: No flights returned" — the
+    unauthenticated tier is heavily rate-limited (free registration)
+
 ## 1.1.0
 
 - Add optional AIS ship-tracking support via a new `aisstream_api_key` option
