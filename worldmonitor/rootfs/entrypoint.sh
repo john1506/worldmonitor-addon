@@ -46,6 +46,10 @@ fi
 
 export SEED_INTERVAL_SECONDS=$((SEED_INTERVAL_MINUTES * 60))
 
+# Redis RDB directory — see the persistence note on the redis program in
+# supervisord.conf. Must exist before supervisord starts redis-server.
+mkdir -p /data/redis
+
 # Internal-only secrets wiring Redis <-> the REST proxy <-> the app.
 # Neither Redis (6379) nor the REST proxy (8079) are published outside the
 # container — only nginx's 8080 is reachable, via Ingress — so these can be

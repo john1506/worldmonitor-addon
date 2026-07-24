@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.4
+
+- Persist Redis across restarts. Redis previously ran with `--save "" --dir
+  /tmp` (RDB snapshotting disabled entirely, and even if it weren't, /tmp
+  doesn't survive a container recreation) — every add-on restart or update
+  silently wiped the entire seeded dataset, forcing a full ~45-70 minute
+  reseed across all ~140 seed scripts from empty before any panel had data
+  again. Now snapshots to `/data/redis` (the one directory HA Supervisor
+  actually persists across restarts/updates), with a standard save policy
+  (`60 100 300 10`). `REDIS_PASSWORD` still regenerates fresh every boot as
+  before — it's just an auth credential, not part of the dataset, so
+  reloading old data under a new password is fine.
+
 ## 1.1.3
 
 - Unlock the 3D globe's "4K (2x)" and "Insane (3x)" render-scale options.
