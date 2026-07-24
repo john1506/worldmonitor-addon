@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.5
+
+- Stop the relay's 4 permanently-doomed warm-ping loops (CII risk scores
+  every 8min, chokepoint status + cable health every 30min, service
+  statuses every 15min). Each is a real HTTPS round-trip to
+  api.worldmonitor.app that authenticates as a "trusted internal caller"
+  via `WORLDMONITOR_RELAY_KEY` — a private credential belonging to
+  koala73's own infrastructure that no self-hoster can or should have.
+  Without it, every single ping 401s, forever, on a fixed schedule — not a
+  Pro/paid-tier gate (the underlying features are non-premium), just an
+  auth mechanism that only makes sense for the hosted product's own
+  Vercel/CDN cache-warming, wasted entirely in self-hosted mode. Skips
+  starting these four loops when the key is unset. Confirmed live over
+  several minutes: AIS, oref-alerts, and telegram-feed are all unaffected
+  (none of them depend on this key) — only the guaranteed-401 noise stops.
+
 ## 1.1.4
 
 - Persist Redis across restarts. Redis previously ran with `--save "" --dir

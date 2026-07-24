@@ -189,6 +189,20 @@ COPY --from=builder /app /app/seed
 # the standalone seed-*.mjs convention so it needs no relay/API key either.
 COPY rootfs/seed-scripts/seed-gpsjam.mjs rootfs/seed-scripts/seed-satellites.mjs /app/seed/scripts/
 
+# ais-relay.cjs unconditionally starts 4 loops that keep koala73's own
+# hosted Vercel deployment's edge caches warm (CII risk scores every 8min,
+# chokepoint status/cable health every 30min, service statuses every
+# 15min) — each a real HTTPS round-trip to api.worldmonitor.app that
+# authenticates as a "trusted internal caller" via WORLDMONITOR_RELAY_KEY,
+# a private credential belonging to koala73's own infra that no self-hoster
+# can or should have. Without it every ping 401s forever on a fixed
+# schedule — confirmed live: skipping these four loops when the key is
+# unset doesn't touch AIS/oref/telegram, which don't depend on it at all.
+COPY rootfs/build-patches/relay-warmping-skip-patch.mjs /tmp/relay-warmping-skip-patch.mjs
+RUN node /tmp/relay-warmping-skip-patch.mjs /app/seed/scripts/ais-relay.cjs && \
+    grep -q 'skipping CII/chokepoint/cable-health warm-ping loops' /app/seed/scripts/ais-relay.cjs || \
+      (echo "ERROR: relay warm-ping skip patch did not apply" >&2 && exit 1)
+
 # Redis REST proxy (Upstash-compatible shim upstream wrote themselves)
 COPY --from=redis-rest-deps /app /app/redis-rest
 
