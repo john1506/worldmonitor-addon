@@ -221,9 +221,25 @@ RUN node /tmp/relay-warmping-skip-patch.mjs /app/seed/scripts/ais-relay.cjs && \
 # Redis REST proxy (Upstash-compatible shim upstream wrote themselves)
 COPY --from=redis-rest-deps /app /app/redis-rest
 
+# /api/imagery/v1/search-imagery is entitlement-gated in the compiled
+# handler (401 "API key required" — needs a real worldmonitor.app account).
+# The underlying feature is a satellite-scene-footprint/preview overlay on
+# the 3D globe, not a base-texture system, and the client's OWN hardcoded
+# preview-URL allowlist (src/utils/imagery-preview.ts) already lists
+# sentinel-cogs.s3.us-west-2.amazonaws.com — i.e. it already expected
+# Element84's free, keyless Earth Search STAC API (Sentinel-2 L2A) as a
+# data source. imagery-relay.mjs implements that directly, matching the
+# ImageryScene response shape exactly, so no client changes are needed.
+COPY rootfs/imagery-relay.mjs /app/imagery-relay.mjs
+
 # Nginx template + our supervisord config (extends upstream's with
-# redis / redis-rest / seed-loop / ais-relay programs) + our own entrypoint
+# redis / redis-rest / seed-loop / ais-relay / imagery-relay programs) +
+# our own entrypoint
 COPY --from=builder /app/docker/nginx.conf /etc/nginx/nginx.conf.template
+COPY rootfs/build-patches/imagery-route-patch.mjs /tmp/imagery-route-patch.mjs
+RUN node /tmp/imagery-route-patch.mjs /etc/nginx/nginx.conf.template && \
+    grep -q 'location = /api/imagery/v1/search-imagery' /etc/nginx/nginx.conf.template || \
+      (echo "ERROR: imagery route patch did not apply" >&2 && exit 1)
 COPY rootfs/supervisord.conf /etc/supervisor/conf.d/worldmonitor.conf
 COPY rootfs/entrypoint.sh /app/entrypoint.sh
 COPY rootfs/seed-loop.sh /app/seed-loop.sh

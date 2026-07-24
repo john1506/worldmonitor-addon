@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.0
+
+- Add free satellite imagery scenes to the 3D globe. `/api/imagery/v1/search-imagery`
+  was entitlement-gated in the compiled handler (401, needs a real
+  worldmonitor.app account) — but the feature itself is a scene-footprint
+  overlay with click-to-preview thumbnails (not a base-texture system), and
+  the client's own hardcoded preview-URL allowlist
+  (`src/utils/imagery-preview.ts`) already listed
+  `sentinel-cogs.s3.us-west-2.amazonaws.com`, meaning the original feature
+  was already built around this exact free data source.
+  - New standalone service (`imagery-relay.mjs`, same pattern as
+    `ais-relay.cjs`) queries Element84's free, keyless Earth Search STAC
+    API for recent Sentinel-2 L2A scenes and maps them to the exact
+    `ImageryScene` response shape the client expects — no client changes
+    needed at all.
+  - A single nginx `location =` block routes just this one path to the new
+    service; every other `/api/` route is untouched, and the existing
+    (paywalled) compiled handler is completely bypassed rather than
+    modified.
+  - With the "satellites" layer on, panning/zooming the 3D globe now shows
+    real Sentinel-2 footprint outlines with click-to-preview thumbnails —
+    often from the same day. Note the resolution ceiling: Sentinel-2 is
+    10m/pixel, genuinely useful real satellite imagery but not
+    Google-Earth-level building detail (that needs a commercial imagery
+    provider, out of scope for a free self-hosted setup). 5-minute
+    in-memory cache to stay a good citizen of Element84's shared public API.
+
 ## 1.1.6
 
 - Replace both stock 4096x2048 globe textures with 8192x4096 versions (2x
