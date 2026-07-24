@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0
+
+- Add optional AIS ship-tracking support via a new `aisstream_api_key` option
+  (free key from https://aisstream.io). Runs the upstream project's own
+  relay process (`scripts/ais-relay.cjs`) in-container, wired up the same
+  way the hosted product uses it: `get-vessel-snapshot.ts` (Ship Traffic
+  layer), `oref-alerts.js`, and `telegram-feed.js` all read from it via
+  `WS_RELAY_URL`/`RELAY_SHARED_SECRET` rather than talking to their
+  upstreams directly, so this should also clear the `oref-alerts` 503 as a
+  side effect (Telegram intel still needs its own `TELEGRAM_API_ID`/
+  `TELEGRAM_API_HASH`/`TELEGRAM_SESSION`, not covered by this). No nginx
+  changes needed — the relay is only ever called server-side by our
+  existing API handlers, never directly by the browser. Idles quietly
+  (`ais-relay-wrapper.sh`) if no key is configured, rather than crash-
+  looping (the upstream script hard-exits without one). `RELAY_SHARED_SECRET`
+  is freshly generated per boot like the Redis/local-API secrets — it only
+  needs to match between our own processes, nothing external caches it.
+
 ## 1.0.9
 
 - Globe map "Layers" panel: disable the checkbox for any layer with no data,

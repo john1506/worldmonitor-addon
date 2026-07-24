@@ -11,8 +11,9 @@ json_str() {
 if [ -f "$OPTIONS" ]; then
   GROQ_API_KEY="$(json_str groq_api_key)"
   OPENROUTER_API_KEY="$(json_str openrouter_api_key)"
+  AISSTREAM_API_KEY="$(json_str aisstream_api_key)"
   SEED_INTERVAL_MINUTES="$(jq -r '.seed_interval_minutes // 30' "$OPTIONS")"
-  export GROQ_API_KEY OPENROUTER_API_KEY
+  export GROQ_API_KEY OPENROUTER_API_KEY AISSTREAM_API_KEY
 
   # extra_env: list of "KEY=VALUE" strings for anything not exposed as its
   # own option (NASA_FIRMS_API_KEY, FINNHUB_API_KEY, ACLED_*, etc. — see
@@ -72,6 +73,18 @@ if [ ! -s "$WM_SESSION_SECRET_FILE" ]; then
   node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))" > "$WM_SESSION_SECRET_FILE"
 fi
 export WM_SESSION_SECRET="$(cat "$WM_SESSION_SECRET_FILE")"
+
+# ais-relay.cjs (scripts/ais-relay.cjs) is the upstream project's general
+# proxy relay — AIS vessel tracking, oref-alerts, telegram-feed, etc. all
+# read from it via WS_RELAY_URL rather than talking to their upstreams
+# directly. Runs in-container (ais-relay-wrapper.sh no-ops if
+# AISSTREAM_API_KEY isn't set — see that script and its own supervisord
+# entry). RELAY_SHARED_SECRET only needs to match between the relay and the
+# handlers that call it (get-vessel-snapshot.ts, oref-alerts.js, etc.) —
+# both are children of this same entrypoint, so a fresh per-boot secret is
+# fine here (unlike WM_SESSION_SECRET, nothing external caches this one).
+export RELAY_SHARED_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
+export WS_RELAY_URL="http://127.0.0.1:3004"
 
 envsubst '$LOCAL_API_PORT $LOCAL_API_TOKEN' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf
 

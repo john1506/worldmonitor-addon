@@ -6,10 +6,12 @@
 # unmodified, then adds: a local Redis + Redis-REST proxy (so the dashboard
 # has data to show instead of the "0/55 OK" empty state upstream warns about
 # without a seeded cache), the seed scripts + full deps to re-seed
-# periodically in-container, and an options.json -> env bridge for HA's
-# add-on configuration UI. AIS relay (live vessel tracking) is intentionally
-# omitted — it's an always-on extra process needing its own API key; every
-# other panel is seeded from free public data sources.
+# periodically in-container, an options.json -> env bridge for HA's add-on
+# configuration UI, and (optionally, if aisstream_api_key is set) the
+# upstream relay process (scripts/ais-relay.cjs) that backs AIS vessel
+# tracking, oref-alerts, and telegram-feed — idle otherwise since it needs
+# its own free API key from aisstream.io. Every other panel is seeded from
+# free public data sources with no key required.
 # =============================================================================
 
 ARG WORLDMONITOR_REF=396efb905fadda74c4ae77080a1e72658c37aa0e
@@ -145,12 +147,12 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # not the trimmed runtime-deps set used by the raw API handlers above).
 COPY --from=builder /app /app/seed
 
-# Two upstream seeders exist but never run in self-hosted mode:
+# Two upstream seeders exist but never run in self-hosted mode by default:
 #  - scripts/fetch-gpsjam.mjs fetches gpsjam.org (free, no auth) but isn't
 #    named seed-*.mjs, so seed-loop.sh's glob (run-seeders.sh) skips it.
-#  - satellite TLE seeding only exists inside scripts/ais-relay.cjs (the
-#    Railway relay service, which this add-on intentionally omits) — no
-#    seed-*.mjs equivalent ships upstream at all.
+#  - satellite TLE seeding only exists inside scripts/ais-relay.cjs (see the
+#    supervisord ais-relay program below) — no seed-*.mjs equivalent ships
+#    upstream at all.
 # Both fetch from free/no-key public sources (gpsjam.org, celestrak.org).
 # The satellite one is adapted from ais-relay.cjs's seedSatelliteTLEs() to
 # the standalone seed-*.mjs convention so it needs no relay/API key either.
@@ -160,12 +162,13 @@ COPY rootfs/seed-scripts/seed-gpsjam.mjs rootfs/seed-scripts/seed-satellites.mjs
 COPY --from=redis-rest-deps /app /app/redis-rest
 
 # Nginx template + our supervisord config (extends upstream's with
-# redis / redis-rest / seed-loop programs) + our own entrypoint
+# redis / redis-rest / seed-loop / ais-relay programs) + our own entrypoint
 COPY --from=builder /app/docker/nginx.conf /etc/nginx/nginx.conf.template
 COPY rootfs/supervisord.conf /etc/supervisor/conf.d/worldmonitor.conf
 COPY rootfs/entrypoint.sh /app/entrypoint.sh
 COPY rootfs/seed-loop.sh /app/seed-loop.sh
-RUN chmod +x /app/entrypoint.sh /app/seed-loop.sh
+COPY rootfs/ais-relay-wrapper.sh /app/ais-relay-wrapper.sh
+RUN chmod +x /app/entrypoint.sh /app/seed-loop.sh /app/ais-relay-wrapper.sh
 
 RUN chown -R appuser:appgroup /app /tmp/nginx-client-body /tmp/nginx-proxy \
     /tmp/nginx-fastcgi /tmp/nginx-uwsgi /tmp/nginx-scgi /var/log/supervisor \

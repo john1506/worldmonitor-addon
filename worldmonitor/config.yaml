@@ -1,6 +1,6 @@
 ---
 name: "World Monitor"
-version: "1.0.9"
+version: "1.1.0"
 slug: "worldmonitor"
 description: "Self-hosted real-time geopolitical, financial & climate intelligence dashboard (koala73/worldmonitor)"
 url: "https://github.com/koala73/worldmonitor"
@@ -18,11 +18,13 @@ map: []
 options:
   groq_api_key: ""
   openrouter_api_key: ""
+  aisstream_api_key: ""
   seed_interval_minutes: 30
   extra_env: []
 schema:
   groq_api_key: "password?"
   openrouter_api_key: "password?"
+  aisstream_api_key: "password?"
   seed_interval_minutes: "int(5,1440)"
   extra_env:
     - "str"
