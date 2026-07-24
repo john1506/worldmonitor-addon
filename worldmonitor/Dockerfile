@@ -142,6 +142,20 @@ COPY --from=builder /app/api ./api
 COPY --from=builder /app/data ./data
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# local-api-server.mjs wraps global fetch with an SSRF guard blocking
+# requests to private/loopback IPs — already allowlists UPSTASH_REDIS_REST_URL's
+# origin in docker mode for this exact reason, but never did the same for
+# WS_RELAY_URL. Since ais-relay.cjs (below) runs on 127.0.0.1 in-container,
+# every handler that calls it (AIS vessel snapshot, oref-alerts, telegram-feed)
+# was silently SSRF-blocked — swallowed by their own bare catch blocks, so it
+# looked like "no data"/random 502s/503s rather than a clear error. Confirmed
+# live: all three return real data once this origin is allowlisted the same
+# way UPSTASH_REDIS_REST_URL already is.
+COPY rootfs/build-patches/relay-ssrf-allowlist-patch.mjs /tmp/relay-ssrf-allowlist-patch.mjs
+RUN node /tmp/relay-ssrf-allowlist-patch.mjs ./local-api-server.mjs && \
+    grep -q 'process.env.WS_RELAY_URL).origin' ./local-api-server.mjs || \
+      (echo "ERROR: relay SSRF allowlist patch did not apply" >&2 && exit 1)
+
 # Seed scripts + full source + full node_modules, for the in-container
 # periodic re-seed loop (scripts/seed-*.mjs need the full dependency graph,
 # not the trimmed runtime-deps set used by the raw API handlers above).

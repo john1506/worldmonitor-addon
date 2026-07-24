@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.2
+
+- Fix: AIS vessel data, oref-alerts, and telegram-feed all silently returned
+  empty/error responses even with the relay running and correctly credentialed
+  (v1.1.0/v1.1.1). Root cause: `local-api-server.mjs` wraps `fetch` with an
+  SSRF guard that blocks requests to private/loopback IPs — it already
+  allowlists `UPSTASH_REDIS_REST_URL`'s origin in docker mode for this exact
+  reason, but never did the same for `WS_RELAY_URL`. Since `ais-relay.cjs`
+  runs on `127.0.0.1:3004` in-container, every call to it was silently
+  SSRF-blocked and swallowed by a bare `catch { return undefined; }`,
+  presenting as "no data" (vessel snapshot), 503 (oref-alerts), or 502
+  (telegram-feed) with no actual error surfaced anywhere. Adds the same
+  allowlist treatment for `WS_RELAY_URL`, gated identically (docker mode
+  only — desktop/production SSRF posture untouched). Confirmed live: all
+  three now return real data (vessels, density zones, live oref/telegram
+  feed items) immediately after the fix, no further seed loop or relay
+  changes needed.
+
 ## 1.1.1
 
 - Add options for five more free data-source keys, all backing seed-*.mjs
