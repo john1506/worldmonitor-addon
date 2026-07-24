@@ -57,9 +57,21 @@ fi
 # circuit breaker then suppresses a wide swath of OTHER anonymous API calls
 # (including ones that would otherwise work, like the public news digest)
 # for a cooldown period. Fixes far more than just the session endpoint.
-# Freshly generated per start like the Redis/local-API secrets above — only
-# backs short-lived anonymous session tokens, nothing persisted needs it.
-export WM_SESSION_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
+#
+# Unlike the Redis/local-API secrets above, this one MUST persist across
+# restarts: the app sets the signed session token as a long-lived `wm-session`
+# cookie in the browser, and bootstrap.js treats a present-but-invalid cookie
+# as a hard authentication failure (401 "Invalid session token"), not a
+# fall-through to anonymous access. Regenerating the secret on every start
+# (as originally shipped in 1.0.6) silently invalidates every browser's
+# existing cookie on the next restart/update, reproducing the exact 401s this
+# fix was meant to solve. Persist it under /data (survives restarts/updates)
+# and only generate once.
+WM_SESSION_SECRET_FILE="/data/wm_session_secret"
+if [ ! -s "$WM_SESSION_SECRET_FILE" ]; then
+  node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))" > "$WM_SESSION_SECRET_FILE"
+fi
+export WM_SESSION_SECRET="$(cat "$WM_SESSION_SECRET_FILE")"
 
 envsubst '$LOCAL_API_PORT $LOCAL_API_TOKEN' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf
 

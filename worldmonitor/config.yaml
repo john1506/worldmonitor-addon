@@ -1,6 +1,6 @@
 ---
 name: "World Monitor"
-version: "1.0.6"
+version: "1.0.7"
 slug: "worldmonitor"
 description: "Self-hosted real-time geopolitical, financial & climate intelligence dashboard (koala73/worldmonitor)"
 url: "https://github.com/koala73/worldmonitor"

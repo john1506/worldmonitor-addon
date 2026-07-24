@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.7
+
+- Fix: after updating to 1.0.6, some previously-public endpoints (news
+  digest, displacement summary, forecasts, `bootstrap`, even static
+  `manifest.webmanifest`) started returning 401 again. Root cause: 1.0.6
+  generated a fresh `WM_SESSION_SECRET` on every container start. The app
+  sets its signed session token as a long-lived `wm-session` browser cookie,
+  and `bootstrap.js`'s auth check treats a *present but invalid* cookie as a
+  hard authentication failure ("Invalid session token", 401) rather than
+  falling back to anonymous access — so any browser with a cookie from
+  before a restart/update got locked out the moment the secret rotated.
+  Confirmed directly (bypassing the browser and Ingress entirely): every one
+  of these endpoints returns real 200 data with no session at all, so
+  Ingress and the app's own routing were never the problem here. Now
+  persists `WM_SESSION_SECRET` under `/data` (survives restarts and
+  updates) instead of regenerating it each start; existing cookies stay
+  valid across restarts. If you were affected, one hard-refresh/incognito
+  load after updating clears it out.
+- Note: `oref-alerts` and `telegram-feed` returning 503 ("Service
+  Unavailable") is expected and not a bug — both require `WS_RELAY_URL`, a
+  real-time WebSocket relay service in the same category as the AIS relay
+  this add-on already intentionally omits (see 1.0.0). Not fixable without
+  running/pointing to that relay.
+
 ## 1.0.6
 
 - Fix: many "anonymous" API calls (news digest, displacement summary,
