@@ -57,6 +57,25 @@ RUN for f in dist/assets/globe-render-settings-*.js; do \
         (echo "ERROR: globe texture path patch did not apply — upstream source changed, needs re-check" >&2 && exit 1); \
     done
 
+# The app's ~150 fetch("/api/...") call sites (RPC clients, RSS proxy, session
+# bootstrap, etc.) are all plain absolute-path string literals too, same class
+# of bug as the texture paths above but far too many sites to sed individually
+# — and this one has no equivalent already-correct pattern to copy (the Worker
+# import.meta.url trick doesn't apply to a runtime fetch() call). Confirmed via
+# browser console: every single /api/* and /data/* call 404s under Ingress
+# (hits HA's own /api/ REST namespace instead of this add-on), while direct
+# non-Ingress access works fine. Fixes it the same way the codebase already
+# solves this for its Tauri desktop sidecar (a runtime base-path indirection),
+# but done as a tiny inline bootstrap since there's no equivalent web-build
+# config for it: detects the Ingress prefix from location.pathname and
+# rewrites matching fetch() targets to carry it, before any other script
+# (including the app's own Tauri-only fetch patch) can run. No-ops completely
+# outside Ingress (the regex requires the /api/hassio_ingress/<token>/ shape).
+COPY rootfs/build-patches/ingress-api-patch.mjs /tmp/ingress-api-patch.mjs
+RUN node /tmp/ingress-api-patch.mjs dist/dashboard.html && \
+    grep -q 'data-wm-ingress-api-patch' dist/dashboard.html || \
+      (echo "ERROR: ingress API-path patch did not apply" >&2 && exit 1)
+
 # ── Stage 2: Runtime dependencies for the raw (unbundled) API handlers ──────
 FROM ${NODE_BASE} AS runtime-deps
 WORKDIR /app

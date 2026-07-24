@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.5
+
+- Fix: almost every data panel was empty under Ingress — every single
+  `fetch("/api/...")` and `fetch("/data/...")` call in the app (dozens of RPC
+  clients, the RSS proxy, session bootstrap, country-geometry data, etc.) is a
+  hardcoded absolute-path string literal, the same class of bug as the 1.0.4
+  texture fix but far too widespread to patch site-by-site. Under Ingress
+  these resolve against the HA frontend's own origin root and never reach
+  this add-on at all (confirmed: zero matching requests ever hit this
+  container's nginx log, while direct non-Ingress access worked fine).
+  Injects a small inline bootstrap script into `dashboard.html`, running
+  before any other script, that detects the Ingress path prefix from
+  `location.pathname` and rewrites matching `fetch()` targets to carry it.
+  Completely inert outside Ingress.
+  - Known remaining issue after this fix: some background fetches still come
+    back 401 even though they never reach this container's nginx (confirmed
+    via access log) — looks like it may be Home Assistant's own Ingress
+    session/auth layer rejecting some background XHR/fetch calls before
+    forwarding them, not something this add-on controls. Needs further
+    investigation.
+
 ## 1.0.4
 
 - Fix: 3D globe view never rendered under Ingress (worked fine on production/
