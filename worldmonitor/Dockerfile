@@ -51,12 +51,29 @@ RUN npm run build:crawlable-corpus && npm run build:content-corpus && npx tsc &&
 # Patch to the same import.meta.url-relative pattern already used
 # correctly elsewhere in this codebase for Worker construction, which
 # resolves correctly regardless of ingress path nesting depth.
+#
+# Same file also gates the "4K (2x)" and "Insane (3x)" globe render-scale
+# options behind disabled:true, and the scale function itself clamps every
+# selection (including "auto", derived from devicePixelRatio) to a hard
+# max of 1.5x regardless of the UI value picked — a free-tier cap like the
+# 80-source limit, except this one costs worldmonitor.app nothing either
+# way: the extra supersampling only spends the *viewer's own* GPU cycles.
+# Un-disables both options and raises the clamp to 3x (the UI's own
+# declared max) so a selection actually takes effect.
 RUN for f in dist/assets/globe-render-settings-*.js; do \
       sed -i \
         -e 's#"/textures/\([^"]*\)"#new URL("../textures/\1",import.meta.url).href#g' \
+        -e 's#fallbackLabel:"4K (2x)",disabled:!0#fallbackLabel:"4K (2x)"#' \
+        -e 's#fallbackLabel:"Insane (3x)",disabled:!0#fallbackLabel:"Insane (3x)"#' \
+        -e 's#Math\.min(1\.5,Math\.max(1,t))#Math.min(3,Math.max(1,t))#' \
+        -e 's#Math\.min(1\.5,Math\.max(1,a))#Math.min(3,Math.max(1,a))#' \
         "$f"; \
       grep -q 'textures/earth-blue-marble.jpg",import.meta.url).href' "$f" || \
         (echo "ERROR: globe texture path patch did not apply — upstream source changed, needs re-check" >&2 && exit 1); \
+      grep -q 'fallbackLabel:"4K (2x)"}' "$f" && grep -q 'fallbackLabel:"Insane (3x)"}' "$f" || \
+        (echo "ERROR: render-scale unlock patch did not apply — upstream source changed, needs re-check" >&2 && exit 1); \
+      grep -q 'Math.min(3,Math.max(1,t))' "$f" && grep -q 'Math.min(3,Math.max(1,a))' "$f" || \
+        (echo "ERROR: render-scale clamp patch did not apply — upstream source changed, needs re-check" >&2 && exit 1); \
     done
 
 # The app's ~150 fetch("/api/...") call sites (RPC clients, RSS proxy, session

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.3
+
+- Unlock the 3D globe's "4K (2x)" and "Insane (3x)" render-scale options.
+  These were hardcoded `disabled: true` in the render-scale picker, and the
+  scale function itself clamped every selection (including "auto", derived
+  from devicePixelRatio) to a hard max of 1.5x regardless of what was
+  picked — the same free-tier-cap pattern as the 80-source limit removed
+  in 1.0.8, except here the extra supersampling only costs the *viewer's*
+  own GPU, nothing on worldmonitor.app's side either way. Raises the clamp
+  to 3x (the UI's own declared max) so picking "4K" or "Insane" actually
+  takes effect. Note: this improves overall rendering sharpness/anti-
+  aliasing via supersampling: it does not increase the base earth
+  texture's fixed 4096x2048 resolution, which is the same file at every
+  render scale and the true ceiling on texture detail at extreme zoom.
+
 ## 1.1.2
 
 - Fix: AIS vessel data, oref-alerts, and telegram-feed all silently returned
