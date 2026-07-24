@@ -38,8 +38,23 @@ const snippet = `<script nonce="wm-static-bootstrap" data-wm-ingress-api-patch>
   }
   window.fetch = function(input, init) {
     try {
-      if (typeof input === 'string' && input.charAt(0) === '/' && needsRewrite(input)) {
-        input = prefix + input;
+      if (typeof input === 'string') {
+        if (input.charAt(0) === '/' && needsRewrite(input)) {
+          input = prefix + input;
+        } else if (input.charAt(0) !== '/') {
+          // Some call sites (e.g. src/services/imagery.ts) build a full
+          // absolute URL via new URL(...).toString() instead of a bare
+          // "/api/..." string -- that case fell through both branches
+          // below (didn't start with "/", wasn't a Request object),
+          // silently missing the ingress prefix. Confirmed via search-imagery
+          // 404ing with no ingress token in the URL while every other
+          // /api/ call worked fine.
+          var su = new URL(input, location.href);
+          if (su.origin === location.origin && needsRewrite(su.pathname)) {
+            su.pathname = prefix + su.pathname;
+            input = su.toString();
+          }
+        }
       } else if (input && typeof input === 'object' && 'url' in input) {
         var u = new URL(input.url, location.href);
         if (u.origin === location.origin && needsRewrite(u.pathname)) {

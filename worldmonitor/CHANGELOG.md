@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.1
+
+- Fix: the new imagery-scene feature from 1.2.0 404'd under Ingress —
+  `src/services/imagery.ts` builds its request via
+  `new URL('/api/imagery/v1/search-imagery', window.location.origin).toString()`
+  and calls `fetch()` with the resulting *full absolute URL string*, unlike
+  every other call site in the app which passes a bare `/api/...` relative
+  path. The ingress-fetch-patch (from 1.0.5) only rewrote bare relative
+  paths and `Request` objects — an absolute URL string fell through both
+  branches silently, so this one call site never got the ingress token
+  prefix while everything else worked fine. Now also rewrites same-origin
+  absolute URL strings. Confirmed live: the failing request now carries the
+  ingress prefix like every other `/api/` call.
+
 ## 1.2.0
 
 - Add free satellite imagery scenes to the 3D globe. `/api/imagery/v1/search-imagery`
