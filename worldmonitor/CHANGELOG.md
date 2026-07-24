@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.6
+
+- Replace both stock 4096x2048 globe textures with 8192x4096 versions (2x
+  linear, 4x pixel count) built from NASA's own public-domain source data —
+  the fixed low resolution was the real ceiling on zoomed-in detail that
+  1.1.3's render-scale unlock alone couldn't fix.
+  - `earth-blue-marble.jpg` (daytime view): re-sourced from NASA Blue Marble
+    Next Generation, the same composite family the original file was
+    already a lower-res crop of.
+  - `earth-topo-bathy.jpg` (the default view — despite the filename, this
+    is actually the night-lights texture, not topography/bathymetry,
+    confirmed by inspection): re-sourced from NASA Black Marble 2016 color.
+  - Both Lanczos-downsampled from NASA's originals with a light unsharp
+    mask to counter resampling/JPEG softening. Stopped at 8192 rather than
+    the full 16384/21600-wide source: large enough for a real, visible
+    detail upgrade (confirmed with matched-zoom UK-region crops), small
+    enough to stay within WebGL max-texture-size limits on phone/Pi-class
+    GPUs and keep the download reasonable (~5.8MB / ~2.5MB vs. NASA's
+    26MB/8MB originals). Both are US government work, public domain.
+
 ## 1.1.5
 
 - Stop the relay's 4 permanently-doomed warm-ping loops (CII risk scores

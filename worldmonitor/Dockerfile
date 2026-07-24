@@ -159,6 +159,21 @@ COPY --from=builder /app/api ./api
 COPY --from=builder /app/data ./data
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Replace the stock 4096x2048 globe textures with versions built from NASA's
+# own public-domain source data at 8192x4096 (2x linear / 4x pixel count —
+# doubling again to 16384 risks exceeding WebGL max-texture-size on some
+# phone/Pi-class GPUs, so this is the safe ceiling), Lanczos-downsampled
+# with a light unsharp mask to counter the softening from resampling + JPEG.
+# earth-blue-marble.jpg <- NASA Blue Marble Next Generation (July 2004),
+# the exact same daytime composite family the original file was a lower-res
+# crop of: https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-map/
+# earth-topo-bathy.jpg <- despite the filename, this is actually the globe's
+# night-lights texture (confirmed by inspection, not topography/bathymetry
+# data) — replaced with NASA Black Marble 2016 color:
+# https://science.nasa.gov/earth/earth-observatory/earth-at-night/maps/
+# Both are US government work, public domain, free to redistribute.
+COPY rootfs/textures/earth-blue-marble.jpg rootfs/textures/earth-topo-bathy.jpg /usr/share/nginx/html/textures/
+
 # local-api-server.mjs wraps global fetch with an SSRF guard blocking
 # requests to private/loopback IPs — already allowlists UPSTASH_REDIS_REST_URL's
 # origin in docker mode for this exact reason, but never did the same for
