@@ -92,6 +92,23 @@ RUN for f in dist/assets/main-*.js; do \
       sed -i 's#}if(mt())return;let t=Ce(Z\.panels#}if(!0)return;let t=Ce(Z.panels#' "$f"; \
     done
 
+# The globe map's "Layers" toggle list already flags a layer as no-data (a
+# CSS class, dimming the label) once its fetch resolves empty/erroring —
+# but the checkbox stays fully clickable regardless, so you can still select
+# a layer that will never show anything (e.g. "Ship Traffic" — the AIS relay
+# is intentionally omitted from this self-hosted image, see the builder
+# stage note above). Reuses that same existing per-layer data-presence
+# signal (not a hardcoded layer list, which would go stale as seeders get
+# fixed/broken over time — gpsJamming and satellites both started out
+# no-data and are seeded correctly now) to also disable the checkbox input
+# whenever a layer has no data.
+COPY rootfs/build-patches/layer-nodata-disable-patch.mjs /tmp/layer-nodata-disable-patch.mjs
+RUN for f in dist/assets/GlobeMap-*.js; do \
+      node /tmp/layer-nodata-disable-patch.mjs "$f"; \
+      grep -q 's=i.querySelector("input"))&&(s.disabled=!t)' "$f" || \
+        (echo "ERROR: layer no-data checkbox-disable patch did not apply" >&2 && exit 1); \
+    done
+
 # ── Stage 2: Runtime dependencies for the raw (unbundled) API handlers ──────
 FROM ${NODE_BASE} AS runtime-deps
 WORKDIR /app

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.9
+
+- Globe map "Layers" panel: disable the checkbox for any layer with no data,
+  not just dim its label. The app already tracks per-layer data presence
+  (`setLayerReady(layer, hasData)`, called after every layer fetch resolves)
+  and used it only to toggle a `no-data` CSS class — the checkbox stayed
+  fully clickable either way, so you could still turn on a layer that will
+  never render anything (e.g. Ship Traffic, since the AIS relay is
+  intentionally omitted from this self-hosted image). Hooks the same
+  existing signal to also set the checkbox's `disabled` state, so it stays
+  correct automatically as seeders get fixed or break over time, rather
+  than hardcoding a static list of known-broken layers. Only patches the
+  3D globe view's layer list for now — the 2D deck.gl map view doesn't
+  implement the no-data class at all currently, so its checkboxes are
+  unaffected by this change.
+
 ## 1.0.8
 
 - Remove the free-tier 80-source / 40-panel display cap. `enforceFreeTierLimits()`
