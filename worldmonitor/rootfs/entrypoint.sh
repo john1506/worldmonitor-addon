@@ -51,6 +51,16 @@ if [ -z "${LOCAL_API_TOKEN:-}" ]; then
   export LOCAL_API_TOKEN
 fi
 
+# api/wm-session.js signs anonymous session tokens with this (plain HMAC,
+# no external auth service) — without it every /api/wm-session call 503s
+# "Session service not configured", and the frontend's own client-side
+# circuit breaker then suppresses a wide swath of OTHER anonymous API calls
+# (including ones that would otherwise work, like the public news digest)
+# for a cooldown period. Fixes far more than just the session endpoint.
+# Freshly generated per start like the Redis/local-API secrets above — only
+# backs short-lived anonymous session tokens, nothing persisted needs it.
+export WM_SESSION_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
+
 envsubst '$LOCAL_API_PORT $LOCAL_API_TOKEN' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf
 
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/worldmonitor.conf

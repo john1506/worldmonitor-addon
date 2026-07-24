@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.6
+
+- Fix: many "anonymous" API calls (news digest, displacement summary,
+  forecasts, satellite list, etc.) still failed after the 1.0.5 ingress-path
+  fix — some as a real 401/503, but far more than that got suppressed
+  client-side. Root cause: `POST /api/wm-session` (which signs a short-lived
+  anonymous session token via plain HMAC) always 503'd with "Session service
+  not configured" because `WM_SESSION_SECRET` was never set in this add-on's
+  environment. The frontend's own client-side circuit breaker then treats
+  that failure as a signal to suppress a wide swath of *other* anonymous API
+  calls for a cooldown period — including several that would otherwise
+  succeed fine. `entrypoint.sh` now generates a fresh 32-byte
+  `WM_SESSION_SECRET` on every start, the same way it already does for the
+  Redis and local-API secrets. This turned out to be the real explanation for
+  the "some background fetches still come back 401" note in 1.0.5 below —
+  not an HA Ingress auth-layer issue as speculated there.
+- Correction to the 1.0.5 note: confirmed via direct request testing that the
+  three genuinely public/anonymous RPCs (news digest, displacement summary,
+  forecasts) return real data once reached through the ingress-path fix and
+  with a working session token. Other endpoints (risk scores, security
+  advisories, humanitarian summary, temporal baseline, etc.) do return a
+  real 401 "API key required" — that part is a genuine paid-tier
+  entitlement gate on api.worldmonitor.app, not fixable from this add-on.
+
 ## 1.0.5
 
 - Fix: almost every data panel was empty under Ingress — every single
