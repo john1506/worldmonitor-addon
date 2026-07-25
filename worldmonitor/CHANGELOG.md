@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.3.0
+
+- Add a "vanilla" self-hosted client: source-level removal of the panels
+  that were unconditionally `premium: 'locked'` and only ever showed an
+  upsell stub for self-hosters (no free path exists for them at all,
+  unlike `premium: 'enhanced'` panels which already work fully free).
+  Applied as a real git patch
+  (`rootfs/source-patches/vanilla-client.patch`) to the pinned upstream
+  checkout before `npm ci`/`tsc`/`vite build` run, not a post-build patch —
+  so the removed panels never appear in search, settings, or category
+  lists in the first place, rather than being hidden behind a gate.
+  - Removed 11 panels across the 5 variant panel-config blocks: Stock
+    Analysis, Backtesting, Daily Market Brief, WM Analyst (chat-analyst),
+    Global Procurement, Trade Policy, Latest Brief, WSB Ticker Scanner, AI
+    Market Implications, Regional Intelligence, Deduct Situation.
+  - Left untouched: the `premium: 'enhanced'` panels (Country
+    Instability/`cii`, Strategic Risk, Live Intelligence/`gdelt-intel`,
+    Supply Chain) — these already work fully for free/self-hosted users,
+    Pro just adds bonus extras on top. Also left untouched the
+    desktop-only-locked panels (Forecast, OREF Sirens, Telegram Intel) —
+    these are never locked on web/self-hosted builds regardless of this
+    patch.
+  - Dropped the single `showProBanner()` call site in `App.ts` (plus its
+    import) so the "Upgrade to Pro" banner never mounts.
+    `src/components/ProBanner.ts` itself is left completely untouched —
+    its exports are simply never called, which avoids a `tsc`
+    `strictNullChecks` regression that showed up when gutting the
+    function body directly (an early `return` before existing code left
+    now-dead-but-still-typechecked branches newly flagged as "possibly
+    null").
+  - Verified against the pinned commit: `git apply --check` applies
+    cleanly to a fresh checkout, `npx tsc --noEmit` passes with the patch
+    applied, and the Dockerfile build now fails loudly (rather than
+    silently) if a future `WORLDMONITOR_REF` bump causes the patch to stop
+    matching the removed panel keys or the `showProBanner` call site.
+  - This pins to the current upstream commit rather than tracking
+    upstream automatically; bumping `WORLDMONITOR_REF` in the future may
+    require manually re-resolving conflicts in this patch file.
+
 ## 1.2.1
 
 - Fix: the new imagery-scene feature from 1.2.0 404'd under Ingress —

@@ -26,6 +26,28 @@ RUN apk add --no-cache git \
     && git clone https://github.com/koala73/worldmonitor.git . \
     && git checkout "${WORLDMONITOR_REF}"
 
+# Vanilla self-hosted client: removes the panels that carry premium: 'locked'
+# (Stock Analysis, Backtesting, Daily Market Brief, WM Analyst, Global
+# Procurement, Trade Policy, Latest Brief, WSB Ticker Scanner, AI Market
+# Implications, Regional Intelligence, Deduct Situation) from every variant's
+# panel config, and drops the App.ts call site for the "Upgrade to Pro"
+# banner. Real source-level removal (not a post-build patch) since these are
+# scattered across 5 variant config blocks plus a standalone component --
+# cleanest done before the TS build runs, so search/settings/category lists
+# never see these keys at all rather than hiding an entitlement-gated stub.
+# `premium: 'enhanced'` panels (Country Instability, Strategic Risk, Live
+# Intelligence, Supply Chain) are untouched -- those already work fully for
+# free users, Pro just adds bonus extras on top. Verified clean against this
+# exact pinned commit: `npx tsc --noEmit` passes with the patch applied.
+# Pinned to WORLDMONITOR_REF above -- bumping that ref may require manually
+# re-resolving conflicts in this patch (see rootfs/source-patches/README, if
+# one gets added) rather than it applying automatically forever.
+COPY rootfs/source-patches/vanilla-client.patch /tmp/vanilla-client.patch
+RUN git apply /tmp/vanilla-client.patch && \
+    ! grep -q "'stock-analysis':.*premium: 'locked'" src/config/panels.ts && \
+    ! grep -q "showProBanner" src/App.ts || \
+      (echo "ERROR: vanilla-client patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
 RUN npm ci --ignore-scripts
 
 # Compile TypeScript API handlers → self-contained ESM bundles
