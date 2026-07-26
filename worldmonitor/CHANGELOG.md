@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.10.0
+
+- Add **NASA HD Tiles** as a selectable 3D globe texture (Preferences,
+  next to the globe visual preset). The existing textures are single
+  static equirectangular JPEGs (4096×2048) wrapped around the whole
+  globe — once the camera gets close, WebGL can only stretch those
+  existing pixels, and simply shipping a much bigger JPEG isn't
+  practical either (a 16K texture needs on the order of 512–683 MiB of
+  GPU texture memory regardless of on-disk file size, likely exceeding
+  many devices' texture size limits). NASA HD Tiles instead uses
+  three-globe's native tile engine to stream NASA GIBS' Blue Marble
+  Next Generation layer at the zoom-appropriate resolution as you get
+  closer — roughly 16x the linear detail of the current texture at
+  GIBS' native max zoom level. Falls back to the existing static Blue
+  Marble image before tiles load, and above/below roughly ±85° latitude
+  where GIBS' Web Mercator tile grid has no coverage. Attribution
+  updates to match whichever texture is actually selected.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.9.0
 
 - **Imagery Watch redesign**: playback now lives inside the full-resolution
