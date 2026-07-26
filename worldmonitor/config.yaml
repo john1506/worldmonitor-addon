@@ -1,6 +1,6 @@
 ---
 name: "World Monitor"
-version: "1.5.0"
+version: "1.6.0"
 slug: "worldmonitor"
 description: "Self-hosted real-time geopolitical, financial & climate intelligence dashboard (koala73/worldmonitor)"
 url: "https://github.com/koala73/worldmonitor"
@@ -26,6 +26,7 @@ options:
   opensky_client_id: ""
   opensky_client_secret: ""
   seed_interval_minutes: 30
+  imagery_watch_interval_minutes: 60
   extra_env: []
 schema:
   groq_api_key: "password?"
@@ -38,5 +39,6 @@ schema:
   opensky_client_id: "password?"
   opensky_client_secret: "password?"
   seed_interval_minutes: "int(5,1440)"
+  imagery_watch_interval_minutes: "int(5,1440)"
   extra_env:
     - "str"

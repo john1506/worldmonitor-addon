@@ -14,6 +14,11 @@ This add-on runs, in one container via supervisord:
 - A background loop that re-runs the project's ~150 `seed-*.mjs` scripts every
   `seed_interval_minutes` (default 30) — most need no API key at all (earthquakes,
   weather, conflicts, prediction markets, crypto, etc.)
+- **Imagery Watch**: turn on the "Imagery Watch" panel (Settings → Panels, off by
+  default) to subscribe to specific areas and get notified when new free satellite
+  imagery (Sentinel-2 globally, plus higher-resolution NAIP for US locations) is
+  captured there — useful for keeping an eye on a city or region over time. Checks
+  every `imagery_watch_interval_minutes` (default 60).
 
 **Not included:** the AIS relay (live vessel/ship tracking). That's an always-on
 extra process that also needs its own `AISSTREAM_API_KEY`. Every other panel works
@@ -29,6 +34,7 @@ panels while the seed loop repopulates the cache.
 | `groq_api_key` | Free at https://console.groq.com — optional fallback LLM provider (see below for the primary path) |
 | `openrouter_api_key` | Free at https://openrouter.ai — the primary LLM provider for this add-on's default config (see below) |
 | `seed_interval_minutes` | How often to re-run the seed scripts (default 30) |
+| `imagery_watch_interval_minutes` | How often Imagery Watch re-checks subscribed areas for new satellite imagery (default 60) |
 | `extra_env` | List of `KEY=VALUE` strings for any other upstream env var |
 
 Everything in `extra_env` is exported as-is before the app starts. Useful free-tier keys

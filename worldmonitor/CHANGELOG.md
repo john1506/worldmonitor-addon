@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.6.0
+
+- Add **Imagery Watch**: subscribe to a specific area (a city, a conflict
+  zone, anywhere) and get notified when new satellite imagery is captured
+  there. New "Imagery Watch" panel (off by default, in the Full/Tech/
+  Finance/Commodity variants) lets you name an area, use the current map
+  view as its center, and set a radius; from then on it's tracked
+  automatically.
+  - `imagery-relay.mjs` gained a background poll loop (interval configurable
+    via the new `imagery_watch_interval_minutes` option, default 60) that
+    re-queries free STAC imagery sources for every subscribed area and
+    records anything new to Redis. New "auto mode": queries Sentinel-2
+    (10m/px, global) always, and also NAIP (Microsoft's Planetary Computer,
+    0.6-1m/px) for areas within the continental US — verified both keyless
+    for search *and* actual asset access before relying on them, live
+    against the running add-on, not assumed. (Other candidate free sources
+    were checked and rejected: Umbra's open SAR data turned out to be a
+    small curated demo catalog, not an on-demand searchable archive for
+    arbitrary areas.)
+  - In-app only for now: an unread badge on the panel plus a toast when new
+    imagery lands. No Home Assistant notification integration yet, no
+    high-resolution zoomable viewer, no local re-hosting of imagery, no
+    suggested-areas feature — those are a following release. Clicking a
+    capture currently opens the source image directly.
+  - New nginx route (`/api/imagery-watch/v1/*`) alongside the existing
+    imagery-relay route, same proxy pattern.
+- This is also the first feature built directly in the `john1506/
+  worldmonitor` fork (see 1.5.0) rather than as a patch file — bumped
+  `WORLDMONITOR_REF` to the fork commit that adds the panel.
+
 ## 1.5.0
 
 - Build from a real fork (`github.com/john1506/worldmonitor`, `self-hosted`

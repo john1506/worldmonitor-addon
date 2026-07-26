@@ -27,6 +27,18 @@ const insertion = `    # Free replacement for the paywalled search-imagery RPC -
       proxy_send_timeout 15s;
     }
 
+    # Imagery Watch (subscribe/replay/notify) -- same imagery-relay.mjs
+    # process, different routes. Prefix match is longer/more specific than
+    # the generic /api/ prefix below, so nginx picks this one regardless of
+    # declaration order.
+    location /api/imagery-watch/ {
+      proxy_pass http://127.0.0.1:3006;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_read_timeout 15s;
+      proxy_send_timeout 15s;
+    }
+
     # API proxy → Node.js local-api-server
     location /api/ {`;
 
