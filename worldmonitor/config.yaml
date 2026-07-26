@@ -1,6 +1,6 @@
 ---
 name: "World Monitor"
-version: "1.6.0"
+version: "1.7.0"
 slug: "worldmonitor"
 description: "Self-hosted real-time geopolitical, financial & climate intelligence dashboard (koala73/worldmonitor)"
 url: "https://github.com/koala73/worldmonitor"
@@ -14,6 +14,7 @@ ingress: true
 ingress_port: 8080
 panel_icon: mdi:earth
 panel_title: "World Monitor"
+homeassistant_api: true
 map: []
 options:
   groq_api_key: ""

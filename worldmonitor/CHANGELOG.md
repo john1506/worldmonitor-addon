@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.7.0
+
+- **Imagery Watch, Phase 2** — four additions on top of 1.6.0's core
+  subscribe/poll/notify/replay loop:
+  - **Home Assistant notifications**: added `homeassistant_api: true` to
+    this add-on's permissions (Supervisor will likely prompt you to
+    re-approve add-on permissions on update — this is expected). Each
+    tracked area can opt in to also fire a real HA `persistent_notification`
+    when new imagery lands, on top of the existing in-app badge/toast.
+    Suppressed for the initial historical backfill when you first add an
+    area — only fires for genuinely new captures afterward.
+  - **Full-resolution viewer**: click any capture in an area's history to
+    open it beyond the small thumbnail — reads a real, higher-resolution
+    layer directly from the source Cloud-Optimized GeoTIFF in your browser
+    (no new server-side infrastructure; COGs are designed for exactly this
+    kind of partial HTTP-range read), with drag-to-pan and scroll-to-zoom.
+    Falls back to the plain preview if that fails for any reason.
+  - **Local re-hosting** (per-area opt-in): keeps a local copy of preview
+    images on disk so an area's history survives even if it ages out of
+    the free upstream source. Capped at 500MB total, oldest evicted first
+    — deliberately caches previews only, not the much larger raw imagery,
+    to avoid filling a Pi's disk.
+  - **Suggested areas**: the "+ Add area" form now surfaces the 5 most
+    active conflict zones from the last 60 days (same UCDP conflict-event
+    data already powering the UCDP Events panel) as one-click suggestions,
+    alongside the existing manual pin/radius flow.
+  - Frontend half lives in the `john1506/worldmonitor` fork, same as
+    1.6.0; this bumps `WORLDMONITOR_REF` to pick it up.
+
 ## 1.6.0
 
 - Add **Imagery Watch**: subscribe to a specific area (a city, a conflict

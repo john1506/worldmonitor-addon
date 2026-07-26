@@ -25,12 +25,26 @@
 
 import http from 'node:http';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const PORT = Number(process.env.IMAGERY_RELAY_PORT || 3006);
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min -- be a good citizen of shared public APIs
 const MAX_LIMIT = 20; // matches the client's own request limit
 const IMAGERY_WATCH_INTERVAL_MS = Math.max(5, Number(process.env.IMAGERY_WATCH_INTERVAL_MINUTES) || 60) * 60 * 1000;
 const EVENTS_MAX = 200; // capped notification-event log
+
+// Local re-hosting (per-area opt-in "storeHighRes"): only the small preview
+// JPEG is cached, not the raw COG asset -- Sentinel-2 TCI.tif files run tens
+// of MB and NAIP's can run 400MB+ (confirmed by fetching a real one), so
+// auto-downloading those for every new scene would fill a Pi's disk fast for
+// no real benefit (the COG stays reachable straight from its public bucket
+// regardless -- caching is about surviving the *preview* aging out, not
+// about full-resolution offline access). A future "download this specific
+// scene" action could still fetch the COG on demand; this is just the
+// automatic per-scene cache.
+const CACHE_DIR = process.env.IMAGERY_CACHE_DIR || '/data/imagery-cache';
+const CACHE_MAX_BYTES = 500 * 1024 * 1024; // 500MB total across all areas
 
 // Continental US bbox (rough, intentionally generous) -- NAIP has no
 // coverage outside this, so skip the extra query entirely for areas that
@@ -261,7 +275,105 @@ async function getEvents(since = 0, limit = 100) {
   return events.filter((e) => e.cursor > since).slice(0, limit);
 }
 
+// ---- Local re-hosting (opt-in per area, preview only -- see CACHE_* above) --
+
+function safeFileToken(raw) {
+  const cleaned = String(raw).replace(/[^A-Za-z0-9_.-]/g, '_');
+  // A token that's entirely dots (".", "..", "...") would otherwise pass
+  // through this filter unchanged and let path.join climb out of CACHE_DIR.
+  return /^\.+$/.test(cleaned) || cleaned === '' ? '_' : cleaned;
+}
+
+function cachePathFor(areaId, sceneId) {
+  const resolved = path.join(CACHE_DIR, safeFileToken(areaId), `${safeFileToken(sceneId)}.jpg`);
+  // Defense in depth: refuse to return anything outside CACHE_DIR even if
+  // the token sanitizing above is ever weakened by a future edit.
+  if (!path.resolve(resolved).startsWith(path.resolve(CACHE_DIR) + path.sep)) {
+    throw new Error('cachePathFor: resolved path escaped CACHE_DIR');
+  }
+  return resolved;
+}
+
+async function dirTotalBytes(dir) {
+  let total = 0;
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true, recursive: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    try {
+      const stat = await fs.stat(path.join(entry.parentPath ?? dir, entry.name));
+      total += stat.size;
+    } catch {
+      // file may have been removed concurrently; skip
+    }
+  }
+  return total;
+}
+
+async function evictOldestUntilUnderCap(targetBytes) {
+  let entries;
+  try {
+    entries = await fs.readdir(CACHE_DIR, { withFileTypes: true, recursive: true });
+  } catch {
+    return;
+  }
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const full = path.join(entry.parentPath ?? CACHE_DIR, entry.name);
+    try {
+      const stat = await fs.stat(full);
+      files.push({ full, mtimeMs: stat.mtimeMs, size: stat.size });
+    } catch {
+      // skip
+    }
+  }
+  files.sort((a, b) => a.mtimeMs - b.mtimeMs); // oldest first
+  let total = files.reduce((sum, f) => sum + f.size, 0);
+  for (const f of files) {
+    if (total <= targetBytes) break;
+    try {
+      await fs.unlink(f.full);
+      total -= f.size;
+    } catch {
+      // already gone
+    }
+  }
+}
+
+// Downloads the scene's preview JPEG to local disk and returns a relative
+// URL for it, or null if caching failed (caller falls back to the original
+// remote previewUrl -- caching is a nice-to-have, never a hard requirement).
+async function cachePreview(areaId, sceneId, previewUrl) {
+  if (!previewUrl) return null;
+  try {
+    const resp = await fetch(previewUrl, { signal: AbortSignal.timeout(15_000) });
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    const dest = cachePathFor(areaId, sceneId);
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, buf);
+
+    const total = await dirTotalBytes(CACHE_DIR);
+    if (total > CACHE_MAX_BYTES) await evictOldestUntilUnderCap(CACHE_MAX_BYTES);
+
+    return `/api/imagery-watch/v1/cache/${encodeURIComponent(areaId)}/${encodeURIComponent(sceneId)}.jpg`;
+  } catch (err) {
+    console.warn(`[imagery-relay] preview cache failed for ${sceneId}:`, err?.message || err);
+    return null;
+  }
+}
+
 async function recordNewScene(area, scene) {
+  if (area.storeHighRes) {
+    const cachedUrl = await cachePreview(area.id, scene.id, scene.previewUrl);
+    if (cachedUrl) scene = { ...scene, previewUrl: cachedUrl, originalPreviewUrl: scene.previewUrl };
+  }
+
   const datetimeMs = Date.parse(scene.datetime) || Date.now();
   const cursor = await redisCmd('INCR', RK.eventsCursor);
   await redisPipeline([
@@ -275,9 +387,39 @@ async function recordNewScene(area, scene) {
   ]);
 }
 
+// ---- Home Assistant notification (opt-in per area) --------------------
+
+const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN || '';
+
+async function notifyHomeAssistant(area, newScenes) {
+  if (!SUPERVISOR_TOKEN || newScenes.length === 0) return;
+  const sources = [...new Set(newScenes.map((s) => s.source === 'naip' ? 'NAIP' : 'Sentinel-2'))].join(' + ');
+  const message = `${newScenes.length} new capture${newScenes.length === 1 ? '' : 's'} (${sources}) for "${area.name}" — open World Monitor's Imagery Watch panel to view.`;
+  try {
+    const resp = await fetch('http://supervisor/core/api/services/notify/persistent_notification', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPERVISOR_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: `World Monitor: new imagery for ${area.name}`,
+        message,
+        notification_id: `worldmonitor-imagery-watch-${area.id}`,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!resp.ok) {
+      console.warn(`[imagery-relay] HA notify failed for area ${area.id}: HTTP ${resp.status}`);
+    }
+  } catch (err) {
+    console.warn(`[imagery-relay] HA notify error for area ${area.id}:`, err?.message || err);
+  }
+}
+
 // ---- Poll loop -----------------------------------------------------------
 
-async function pollArea(area) {
+async function pollArea(area, { isInitialSeed = false } = {}) {
   const bbox = parseBbox(area.bbox);
   if (!bbox) return;
   const scenes = await searchAllSources(bbox, MAX_LIMIT);
@@ -291,6 +433,10 @@ async function pollArea(area) {
   }
   if (newScenes.length > 0) {
     console.log(`[imagery-relay] area "${area.name}" (${area.id}): ${newScenes.length} new scene(s)`);
+    // Skip the HA push on the initial backfill when an area is first added --
+    // a "20 new captures" notification for history that already existed
+    // before you subscribed isn't useful. The in-app badge still reflects it.
+    if (area.notifyHa && !isInitialSeed) await notifyHomeAssistant(area, newScenes);
   }
 }
 
@@ -358,7 +504,7 @@ const server = http.createServer(async (req, res) => {
         notifyHa: Boolean(body.notifyHa),
       });
       // Seed immediately so the area isn't empty until the next poll cycle.
-      pollArea(area).catch((err) => console.warn('[imagery-relay] initial poll failed:', err?.message || err));
+      pollArea(area, { isInitialSeed: true }).catch((err) => console.warn('[imagery-relay] initial poll failed:', err?.message || err));
       return sendJson(res, 200, { area });
     }
     if (req.method === 'DELETE') {
@@ -381,6 +527,29 @@ const server = http.createServer(async (req, res) => {
     const since = Number(url.searchParams.get('since')) || 0;
     const events = await getEvents(since);
     return sendJson(res, 200, { events });
+  }
+
+  const cacheMatch = url.pathname.match(/^\/api\/imagery-watch\/v1\/cache\/([^/]+)\/([^/]+)\.jpg$/);
+  if (cacheMatch) {
+    // Scene IDs legitimately contain characters safeFileToken strips (e.g.
+    // the "s2:"/"naip:" source prefix's colon), so areaId/sceneId here are
+    // expected to differ from their sanitized form -- that's not tampering.
+    // cachePathFor() re-derives the same sanitized path cachePreview() wrote
+    // to, and its own resolved-path containment check is what actually
+    // guards against escaping CACHE_DIR.
+    // url.pathname returns the raw percent-encoded path (WHATWG URL does not
+    // auto-decode it), so the captured segments must be decoded explicitly
+    // before sanitizing -- otherwise "%3A" never becomes ":" and every
+    // scene-ID-with-a-colon 404s even though it's genuinely cached.
+    try {
+      const areaId = decodeURIComponent(cacheMatch[1]);
+      const sceneId = decodeURIComponent(cacheMatch[2]);
+      const buf = await fs.readFile(cachePathFor(areaId, sceneId));
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(buf);
+    } catch {
+      return sendJson(res, 404, { error: 'not cached' });
+    }
   }
 
   return sendJson(res, 404, { error: 'not found' });

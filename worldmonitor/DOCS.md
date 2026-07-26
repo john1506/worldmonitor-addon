@@ -18,7 +18,12 @@ This add-on runs, in one container via supervisord:
   default) to subscribe to specific areas and get notified when new free satellite
   imagery (Sentinel-2 globally, plus higher-resolution NAIP for US locations) is
   captured there — useful for keeping an eye on a city or region over time. Checks
-  every `imagery_watch_interval_minutes` (default 60).
+  every `imagery_watch_interval_minutes` (default 60). In-app notifications work
+  out of the box; per-area, you can also opt in to a real Home Assistant
+  notification — this add-on requests `homeassistant_api` permission for that,
+  which Supervisor will likely ask you to re-approve the first time you update.
+  Click any capture in an area's history to open it at full resolution (pan/zoom),
+  and optionally opt an area in to keep a local copy of its imagery on disk.
 
 **Not included:** the AIS relay (live vessel/ship tracking). That's an always-on
 extra process that also needs its own `AISSTREAM_API_KEY`. Every other panel works
