@@ -100,6 +100,22 @@ RUN git apply /tmp/api-keys-tab-remove.patch && \
     ! grep -q 'data-tab="api-keys"' src/components/UnifiedSettings.ts || \
       (echo "ERROR: api-keys-tab-remove patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
 
+# CMD+K search's flight-callsign lookup has two tiers: (1) instantly search
+# whatever ADS-B/military positions the globe is ALREADY tracking (fed in as
+# plain arrays by the caller — zero new network calls), and (2) a "search
+# live flight X" fallback that calls the paid RPC for callsigns not
+# currently tracked. Only tier 1 was gated behind isProUser() in
+# SearchManager.updateFlightSource — pure client-side indexing of data
+# already fetched via this add-on's own free OpenSky relay (see
+# scripts/ais-relay.cjs / RELAY_SHARED_SECRET, unrelated to any paid
+# worldmonitor.app credential). Tier 2 (setOnFlightSearch, still checked
+# against the running add-on: `/api/aviation/v1/track-aircraft` genuinely
+# 401s) is untouched — same reasoning as leaving Resilience Ranking gated.
+COPY rootfs/source-patches/flight-search-unlock.patch /tmp/flight-search-unlock.patch
+RUN git apply /tmp/flight-search-unlock.patch && \
+    ! grep -q '!this.ctx.searchModal || !isProUser()' src/app/search-manager.ts || \
+      (echo "ERROR: flight-search-unlock patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
 RUN npm ci --ignore-scripts
 
 # Compile TypeScript API handlers → self-contained ESM bundles

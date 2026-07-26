@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.2
+
+- Unlock CMD+K search's flight-callsign lookup for flights the globe is
+  already tracking. `SearchManager.updateFlightSource` takes plain ADS-B/
+  military position arrays as parameters (fed by the map's own live
+  tracking — no network call inside the function itself) and only formats
+  them into the search index; it was gated behind `isProUser()` for no
+  functional reason, same category as the 1.4.0 playback fix. The
+  "search live flight X" fallback for callsigns *not* currently tracked
+  (which calls a paid RPC) is untouched — confirmed via the running add-on
+  that `/api/aviation/v1/track-aircraft` genuinely 401s without real
+  credentials, same as Resilience Ranking.
+- No code change, but worth noting for anyone who thinks ADS-B/flight
+  tracking is broken: it isn't. Verified the full pipeline live
+  (`ais-relay.cjs` → `local-api-server.mjs` → nginx, each hop tested
+  directly) and it correctly serves real aircraft positions end-to-end.
+  The "Flights" map layer is just `enabled: false` by default in every
+  variant's config — toggle it on in the map's Layers panel to see
+  anything. (Requires `opensky_client_id`/`opensky_client_secret` set in
+  the add-on's own configuration, same as always.)
+
 ## 1.4.1
 
 - Remove the Settings modal's "API Keys" and "MCP Clients" tabs. These
