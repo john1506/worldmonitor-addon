@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.4.0
+
+- Uncap the free-tier panel/source limits at every enforcement point, not
+  just the one already patched in 1.0.8. `FREE_MAX_PANELS`/`FREE_MAX_SOURCES`
+  (40/80) turned out to be checked independently in ~4 separate places —
+  App.ts's boot-time trim (the only one the existing compiled-bundle sed
+  patch touched), the settings-window panel/source toggle handlers, and
+  panel-layout.ts's add-panel path — all reading the same two exported
+  `panels.ts` constants. Raising both to `Infinity` at the source
+  (`rootfs/source-patches/free-tier-uncap.patch`) neutralizes every one of
+  them in a single change, so re-enabling a source or panel in Settings no
+  longer silently no-ops with a "Free plan: max N" toast. Deliberately did
+  NOT patch `isProUser()` itself — that function also gates unrelated Pro
+  cloud features (search enhancements, widget entitlements) this add-on has
+  no credentials to actually deliver, so faking "everyone is Pro" would
+  trade one bug for another.
+- Un-hide the "Historical Playback" scrubber. Existed in upstream already —
+  15-minute dashboard snapshots (news event clusters, market prices,
+  hotspot levels) captured into the browser's own IndexedDB, fully local,
+  no cloud dependency — but was hidden with `display: none` behind a direct
+  `user?.role === 'pro'` check in `setupPlaybackControl()`, a different
+  gate than the panel-lock system the 1.3.0 vanilla-client patch already
+  handles. Removed the gate and its auth-state subscription
+  (`rootfs/source-patches/playback-unlock.patch`); the control is just
+  always shown now. Look for the ⏪ icon in the dashboard header.
+- Both changes verified against the pinned commit: `git apply --check`
+  applies cleanly stacked on top of the existing vanilla-client patch, and
+  `npx tsc --noEmit` passes with all three source patches applied together.
+
 ## 1.3.0
 
 - Add a "vanilla" self-hosted client: source-level removal of the panels

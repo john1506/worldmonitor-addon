@@ -48,6 +48,39 @@ RUN git apply /tmp/vanilla-client.patch && \
     ! grep -q "showProBanner" src/App.ts || \
       (echo "ERROR: vanilla-client patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
 
+# FREE_MAX_PANELS/FREE_MAX_SOURCES (40/80) are enforced independently at ~4
+# separate call sites (App.ts boot-time trim, the settings-window panel/source
+# toggle handlers, and panel-layout.ts's add-panel path) — all reading the
+# same two exported constants, so raising them to Infinity here neutralizes
+# every enforcement path in one place. Deliberately NOT patching isProUser()
+# itself: that function also gates unrelated Pro cloud features (search
+# enhancements, widget entitlements) that this self-hosted image can't
+# actually fulfill without real worldmonitor.app credentials, so faking
+# "everyone is Pro" would silently break those instead of just lifting a
+# capacity cap. This complements (does not replace) the existing main-*.js
+# sed patch below, which only covers the single App.ts boot-time path.
+COPY rootfs/source-patches/free-tier-uncap.patch /tmp/free-tier-uncap.patch
+RUN git apply /tmp/free-tier-uncap.patch && \
+    grep -q "FREE_MAX_PANELS = Infinity" src/config/panels.ts && \
+    grep -q "FREE_MAX_SOURCES = Infinity" src/config/panels.ts || \
+      (echo "ERROR: free-tier-uncap patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
+# The "Historical Playback" scrubber (15-min dashboard snapshots — news event
+# clusters, market prices, hotspot levels — captured into the browser's own
+# IndexedDB, no cloud dependency) exists in upstream but was hidden entirely
+# behind `el.style.display = isPro ? '' : 'none'` in
+# EventHandlerManager.setupPlaybackControl(), gated on Clerk's
+# `user?.role === 'pro'` directly rather than going through
+# isPanelEntitled/isProUser. Since the snapshot data is captured and stored
+# locally with zero reliance on worldmonitor.app's infra, there's no
+# capability gap justifying the gate on a self-hosted image. Removes the
+# gate function and its auth-state subscription entirely; the control is
+# just always shown now (same reasoning as the free-tier-uncap patch above).
+COPY rootfs/source-patches/playback-unlock.patch /tmp/playback-unlock.patch
+RUN git apply /tmp/playback-unlock.patch && \
+    ! grep -q "trackGateHit('playback')" src/app/event-handlers.ts || \
+      (echo "ERROR: playback-unlock patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
 RUN npm ci --ignore-scripts
 
 # Compile TypeScript API handlers → self-contained ESM bundles
