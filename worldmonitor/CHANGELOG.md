@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.3
+
+- No code change from 1.7.2 -- re-tagged after a local Windows build of
+  `:1.7.2` shipped with CRLF-corrupted shell scripts (Git's `core.autocrlf`
+  mangling `entrypoint.sh`'s shebang on checkout, see the addon repo's new
+  `.gitattributes`), which broke the running container with a cryptic
+  tini "No such file or directory" on update. Rebuilding on a clean
+  checkout (GitHub Actions or a fresh local clone now that
+  `.gitattributes` forces LF) produces a working image under this new
+  tag, distinct from the broken `:1.7.2` that was briefly live on GHCR.
+
 ## 1.7.2
 
 - Fix: on the 3D globe, the Layers panel rendered *behind* the layer
