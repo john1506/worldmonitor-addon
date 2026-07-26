@@ -14,12 +14,23 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    # Normal builds (arm64 via QEMU emulation) take 18-24min. Without an
-    # explicit cap this falls back to GitHub's default 360min timeout, so a
-    # genuinely wedged run (seen twice in a row on 2026-07-26, same step,
-    # no reported GitHub incident at the time) silently burns hours of CI
-    # time instead of failing loud and letting a retry take over quickly.
+    # Native arm64 runner instead of ubuntu-latest (x86) + QEMU emulation.
+    # Pulled the actual per-step build log timing on 2026-07-26: npm ci
+    # (~6min), tsc (~5.5min), and vite build (~6.5min) made up ~19 of the
+    # ~24min build -- all CPU-bound Node.js/compiler work, which QEMU
+    # user-mode emulation is known to slow down heavily (commonly 5-10x+
+    # vs native). Public repos get free GitHub-hosted Arm64 runner minutes.
+    # First run on this runner will confirm the actual speedup; if the
+    # label below isn't available for this repo, this job fails fast and
+    # obviously (no silent partial-degradation risk) and can be reverted.
+    runs-on: ubuntu-24.04-arm
+    # Was 18-24min under QEMU emulation; expect meaningfully less natively,
+    # but keeping a generous cap for now until that's actually confirmed.
+    # Without an explicit cap this falls back to GitHub's default 360min
+    # timeout, so a genuinely wedged run (seen twice in a row on
+    # 2026-07-26, same step, no reported GitHub incident at the time)
+    # silently burns hours of CI time instead of failing loud and letting
+    # a retry take over quickly.
     timeout-minutes: 45
     permissions:
       contents: read
@@ -31,8 +42,6 @@ jobs:
         run: |
           version=$(grep '^version:' worldmonitor/config.yaml | cut -d '"' -f2)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
 
