@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.2
+
+- Fix: on the 3D globe, the Layers panel rendered *behind* the layer
+  marker/glyph icons (flights, ships, conflict events, satellites) once
+  enough of them were on screen at once. Root cause: three-globe's
+  CSS2DRenderer assigns each marker an explicit inline `z-index` for 3D
+  depth-sorting equal to the current marker count minus its sort position
+  -- with enough markers up, that number exceeds the panel's static
+  `z-index: 100`, so markers painted over it despite being earlier in the
+  DOM. Bumped the panel to `z-index: 10000`, comfortably clear of any
+  realistic marker count. Frontend-only change, in the fork; bumps
+  `WORLDMONITOR_REF`.
+
 ## 1.7.1
 
 - Imagery Watch's "+ Add area" form can now take coordinates directly
