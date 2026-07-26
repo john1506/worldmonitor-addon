@@ -131,6 +131,25 @@ RUN git apply /tmp/flights-layer-default-on.patch && \
     [ "$(grep -c 'flights: true' src/config/panels.ts)" = "8" ] || \
       (echo "ERROR: flights-layer-default-on patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
 
+# App.ts already has a one-time `worldmonitor-panel-prune-v1` migration that
+# deletes any saved panelSettings key no longer in ALL_PANELS -- but it's a
+# ONE-TIME migration (guarded by its own localStorage flag) that already
+# fired for existing users on an earlier version, for unrelated reasons,
+# before the vanilla-client patch removed these 11 panel keys. Since it
+# never runs twice, anyone who had e.g. Stock Analysis enabled before
+# updating keeps a stale saved panelSettings['stock-analysis'] entry
+# (premium:'locked' baked in from before) forever -- explaining reports of
+# "still see premium panels" after updating, even though ALL_PANELS itself
+# is confirmed clean (no matching panel keys in the compiled bundle).
+# Reuses the exact same prune logic under a new, distinct migration key so
+# it's guaranteed to fire once for every existing installation regardless
+# of prune-v1's history. No-op for fresh installs / anyone who never had
+# these panels enabled.
+COPY rootfs/source-patches/panel-key-prune-migration.patch /tmp/panel-key-prune-migration.patch
+RUN git apply /tmp/panel-key-prune-migration.patch && \
+    grep -q "worldmonitor-vanilla-panel-prune-v1" src/App.ts || \
+      (echo "ERROR: panel-key-prune-migration patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
 RUN npm ci --ignore-scripts
 
 # Compile TypeScript API handlers → self-contained ESM bundles

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.4
+
+- Fix: existing users (anyone who had the add-on running before 1.3.0)
+  kept seeing Stock Analysis/Backtesting/Daily Market Brief/WM Analyst/
+  Global Procurement/Trade Policy/etc. as "PRO" panels after updating,
+  despite 1.3.0 removing them from `ALL_PANELS` entirely. Root cause:
+  App.ts already has a one-time `worldmonitor-panel-prune-v1` migration
+  that deletes saved `panelSettings` entries no longer present in
+  `ALL_PANELS` — but it's genuinely one-time (its own localStorage flag),
+  and it had already fired for existing users on an earlier version for
+  unrelated reasons, before 1.3.0 removed these 11 keys. So their stale
+  saved entries — with the old `premium: 'locked'` field baked in from
+  before — never got cleaned up and kept rendering forever. Confirmed via
+  the actual shipped 1.4.3 image that `ALL_PANELS` itself is clean (no
+  trace of these keys in the compiled bundle) — this was purely a stale-
+  localStorage issue, not a patch that failed to apply. Adds a second,
+  distinctly-keyed one-time migration that reuses the same prune logic, so
+  it's guaranteed to run once for every existing installation regardless
+  of whether prune-v1 already fired. No-op for fresh installs.
+
 ## 1.4.3
 
 - Turn the "Flights" map layer on by default in the variants where the
