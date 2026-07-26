@@ -1,0 +1,22 @@
+# Force LF regardless of the checking-out platform's git config
+# (core.autocrlf, safecrlf, etc). Everything under rootfs/ eventually runs
+# inside the Linux container as a shebang script or gets fed straight to
+# `node`/`sh` -- a CRLF checkout (Git's default behavior on many Windows
+# setups) corrupts the shebang line (#!/bin/sh\r) and the container fails
+# to start with a cryptic "No such file or directory" from tini, even
+# though the file is right there. Seen in practice 2026-07-26: a local
+# Windows `docker buildx build` from a fresh clone baked in CRLF
+# entrypoint.sh and broke the running add-on on update.
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.js text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+*.jpg binary
+*.png binary
