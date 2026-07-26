@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.3
+
+- Turn the "Flights" map layer on by default in the variants where the
+  Airline Intelligence panel is also on by default (FULL/TECH/FINANCE/
+  COMMODITY). `DeckGLMap` only polls live aircraft positions when this
+  layer is enabled, so the panel shipped permanently empty until a user
+  separately found and toggled an unrelated Layers checkbox — a default-
+  value mismatch, not a capability gap or a premium gate (confirmed by
+  testing the full ADS-B pipeline live: `ais-relay.cjs` → `local-api-
+  server.mjs` → nginx, real aircraft data at every hop). HAPPY/ENERGY,
+  which don't ship the panel by default, are left with Flights off.
+
 ## 1.4.2
 
 - Unlock CMD+K search's flight-callsign lookup for flights the globe is

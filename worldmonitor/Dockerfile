@@ -116,6 +116,21 @@ RUN git apply /tmp/flight-search-unlock.patch && \
     ! grep -q '!this.ctx.searchModal || !isProUser()' src/app/search-manager.ts || \
       (echo "ERROR: flight-search-unlock patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
 
+# `airline-intel` panel ships enabled:true by default in FULL/TECH/FINANCE/
+# COMMODITY, but the "Flights" map layer that feeds it (DeckGLMap only polls
+# aircraft positions when this.state.layers.flights is true) ships
+# false — the panel is on-screen by default but permanently empty until a
+# user separately discovers and toggles an unrelated map-layer checkbox.
+# Verified live end-to-end (ais-relay -> local-api-server -> nginx, real
+# aircraft data at every hop) that the pipeline itself works fine; this was
+# purely a default-value mismatch, not a capability gap. Flips flights:false
+# -> true only in the variants where airline-intel is a default panel
+# (leaves HAPPY/ENERGY, which don't ship that panel, untouched).
+COPY rootfs/source-patches/flights-layer-default-on.patch /tmp/flights-layer-default-on.patch
+RUN git apply /tmp/flights-layer-default-on.patch && \
+    [ "$(grep -c 'flights: true' src/config/panels.ts)" = "8" ] || \
+      (echo "ERROR: flights-layer-default-on patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
 RUN npm ci --ignore-scripts
 
 # Compile TypeScript API handlers → self-contained ESM bundles
