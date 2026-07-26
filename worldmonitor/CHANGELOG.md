@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.9.0
+
+- **Imagery Watch redesign**: playback now lives inside the full-resolution
+  pan/zoom COG viewer itself — clicking any thumbnail or the "▶ Replay"
+  button opens the high-res view with play/pause, prev/next, and a scrubber
+  built in, rather than a separate small low-res player embedded in the
+  panel. Play advances sequentially (render frame → pause → advance) instead
+  of on a fixed timer, since a full-res fetch+decode can take longer than a
+  short tick.
+- Add a **coordinate crosshair** to the COG viewer showing exactly where the
+  tracked point falls within a scene's footprint (it can land in any corner
+  of the image, not just the center).
+- Add a **before/after compare slider**: pick two frames, drag a divider to
+  reveal one over the other. Built on the preview JPEGs, not two
+  simultaneously-decoded full-res rasters.
+- Add **capture-gap flagging** (grid badge for unusually long gaps between
+  captures) and a rough **scene-change score** in the HUD, based on coarse
+  average-color comparison between consecutive previews — tolerant of the
+  swath/crop shifts consecutive Sentinel-2/NAIP passes have, at the cost of
+  only catching large-scale changes.
+- **Show tracked Imagery Watch areas as pins** on both the 3D globe and 2D
+  map, with a tooltip showing capture count and latest capture. Always
+  shown, not gated behind a layer toggle.
+- Fix: Imagery Watch thumbnails (grid, area list, COG viewer) were showing
+  broken-image icons for every capture. The `<img>` tags never got the
+  `referrerpolicy="no-referrer"` treatment the live-viewport imagery tooltip
+  already uses — these S3/Azure-hosted previews are referrer-sensitive, and
+  the site's default `strict-origin-when-cross-origin` policy was tripping
+  it on every request.
+- Fix additional instances of the Layers-panel z-index bug from 1.7.2: the
+  marker click-tooltip, the layer explanation popup, and the zoom controls
+  were all still using small static z-index values that three-globe's
+  per-marker dynamic z-index can exceed once a view gets busy. Brought all
+  three in line with the layer panel's existing `z-index: 10000` fix.
+- Add a **rotation-lock toggle** to the 3D globe controls so auto-rotate
+  doesn't quietly resume after 60s idle while you're studying one area.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.8.0
 
 - Add **time-lapse Replay mode** to Imagery Watch. Any tracked area with 2+
