@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.1
+
+- Imagery Watch's "+ Add area" form can now take coordinates directly
+  instead of requiring you to pan the map: paste "lat, lon" (Google Maps'
+  own copy-coordinates format, with or without degree/compass markers)
+  into a text field, or click "📋 Paste" to read it from the clipboard in
+  one step. The manual paste-into-field path works everywhere; the
+  clipboard-read button degrades gracefully to a toast telling you to
+  paste manually if the browser blocks `navigator.clipboard.readText()`
+  (common under plain-HTTP Ingress setups without HTTPS). Frontend-only
+  change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.7.0
 
 - **Imagery Watch, Phase 2** — four additions on top of 1.6.0's core
