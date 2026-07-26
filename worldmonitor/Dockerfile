@@ -81,6 +81,25 @@ RUN git apply /tmp/playback-unlock.patch && \
     ! grep -q "trackGateHit('playback')" src/app/event-handlers.ts || \
       (echo "ERROR: playback-unlock patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
 
+# The Settings modal's "API Keys" / "MCP Clients" tabs are for generating
+# tokens against worldmonitor.app's *own* cloud REST/MCP API (so a script or
+# an AI client like Claude Desktop can query their hosted service) — this is
+# a genuinely different thing from the free "bring your own third-party API
+# key" settings (Groq/OpenRouter/FRED/etc.), and unlike the playback
+# scrubber above, it has no local/self-hosted equivalent: `hasFeature
+# ('apiAccess'/'mcpAccess')` reads the real Convex/Dodo subscription
+# entitlement snapshot and `createApiKey`/`listMcpClients` hit
+# worldmonitor.app's actual backend, none of which this image can obtain or
+# fake. So rather than "unlock" a tab that would just point at a real
+# paywall, this removes the two tab buttons entirely (same low-risk pattern
+# as the ProBanner removal in the vanilla-client patch — the underlying
+# render methods/handlers are untouched but become unreachable, since
+# nothing else in the app can navigate to these tab IDs).
+COPY rootfs/source-patches/api-keys-tab-remove.patch /tmp/api-keys-tab-remove.patch
+RUN git apply /tmp/api-keys-tab-remove.patch && \
+    ! grep -q 'data-tab="api-keys"' src/components/UnifiedSettings.ts || \
+      (echo "ERROR: api-keys-tab-remove patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
+
 RUN npm ci --ignore-scripts
 
 # Compile TypeScript API handlers → self-contained ESM bundles

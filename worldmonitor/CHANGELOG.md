@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.4.1
+
+- Remove the Settings modal's "API Keys" and "MCP Clients" tabs. These
+  aren't the free "bring your own third-party API key" settings (Groq,
+  OpenRouter, FRED, etc. — unrelated, untouched, always free) — they're for
+  generating tokens against worldmonitor.app's *own* cloud REST/MCP API,
+  gated by `hasFeature('apiAccess'/'mcpAccess')` reading a real Convex/Dodo
+  subscription snapshot. There's no local equivalent this image can offer,
+  so rather than leave a "PRO" badge pointing at a real paywall, the two
+  tab buttons are removed entirely (`rootfs/source-patches/api-keys-tab-remove.patch`).
+  The underlying render methods/handlers are untouched (same low-risk
+  pattern as the ProBanner removal in 1.3.0) — just unreachable, since
+  nothing else in the app can navigate to these tab IDs.
+- Swept the rest of the codebase for other Pro-gated features that might
+  have no real capability gap, following the same pattern that led to the
+  playback-scrubber fix in 1.4.0. Found two more candidates — the search
+  modal's flight-callsign search and the globe's "Resilience Ranking"
+  layer — but this time verified live against the running add-on instead
+  of assuming from the code shape: both hit local API handlers
+  (`/app/api/aviation/v1/`, `/app/api/resilience/v1/`) that genuinely
+  return 401 without real worldmonitor.app credentials, same as
+  trade-policy/global-procurement before they were removed as panels.
+  Left both gated — unlocking them would just surface a broken feature
+  instead of a hidden one.
+
 ## 1.4.0
 
 - Uncap the free-tier panel/source limits at every enforcement point, not
