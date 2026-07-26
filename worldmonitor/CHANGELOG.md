@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.11.0
+
+- Add `imagery_cache_max_mb` option: Imagery Watch's local preview cache
+  (only the small thumbnails for areas you've opted in to "keep a local
+  copy" -- not full-resolution assets) was hardcoded to a 500MB total cap.
+  Now configurable (50-20000 MB, still defaults to 500). Oldest cached
+  previews are evicted first once it's full, same eviction behavior as
+  before -- just the ceiling is adjustable now.
+- rootfs-only change (`imagery-relay.mjs`, `entrypoint.sh`,
+  `supervisord.conf`, `config.yaml`) -- no fork/`WORLDMONITOR_REF` bump
+  needed.
+
 ## 1.10.0
 
 - Add **NASA HD Tiles** as a selectable 3D globe texture (Preferences,

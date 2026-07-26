@@ -44,7 +44,12 @@ const EVENTS_MAX = 200; // capped notification-event log
 // scene" action could still fetch the COG on demand; this is just the
 // automatic per-scene cache.
 const CACHE_DIR = process.env.IMAGERY_CACHE_DIR || '/data/imagery-cache';
-const CACHE_MAX_BYTES = 500 * 1024 * 1024; // 500MB total across all areas
+// User-configurable via the add-on's imagery_cache_max_mb option (default
+// 500MB, same as before this was made configurable); clamp to a sane range
+// so a bad options.json value can't zero out the cache or let it grow
+// unbounded.
+const CACHE_MAX_MB = Math.min(20000, Math.max(50, Number(process.env.IMAGERY_CACHE_MAX_MB) || 500));
+const CACHE_MAX_BYTES = CACHE_MAX_MB * 1024 * 1024;
 
 // Continental US bbox (rough, intentionally generous) -- NAIP has no
 // coverage outside this, so skip the extra query entirely for areas that

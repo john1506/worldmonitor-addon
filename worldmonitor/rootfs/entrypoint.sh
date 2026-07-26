@@ -24,9 +24,11 @@ if [ -f "$OPTIONS" ]; then
   OPENSKY_CLIENT_SECRET="$(json_str opensky_client_secret)"
   SEED_INTERVAL_MINUTES="$(jq -r '.seed_interval_minutes // 30' "$OPTIONS")"
   IMAGERY_WATCH_INTERVAL_MINUTES="$(jq -r '.imagery_watch_interval_minutes // 60' "$OPTIONS")"
+  IMAGERY_CACHE_MAX_MB="$(jq -r '.imagery_cache_max_mb // 500' "$OPTIONS")"
   export GROQ_API_KEY OPENROUTER_API_KEY AISSTREAM_API_KEY \
     NASA_FIRMS_API_KEY UCDP_ACCESS_TOKEN EIA_API_KEY FRED_API_KEY \
-    OPENSKY_CLIENT_ID OPENSKY_CLIENT_SECRET IMAGERY_WATCH_INTERVAL_MINUTES
+    OPENSKY_CLIENT_ID OPENSKY_CLIENT_SECRET IMAGERY_WATCH_INTERVAL_MINUTES \
+    IMAGERY_CACHE_MAX_MB
 
   # extra_env: list of "KEY=VALUE" strings for anything not exposed as its
   # own option (NASA_FIRMS_API_KEY, FINNHUB_API_KEY, ACLED_*, etc. — see

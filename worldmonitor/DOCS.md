@@ -23,7 +23,10 @@ This add-on runs, in one container via supervisord:
   notification — this add-on requests `homeassistant_api` permission for that,
   which Supervisor will likely ask you to re-approve the first time you update.
   Click any capture in an area's history to open it at full resolution (pan/zoom),
-  and optionally opt an area in to keep a local copy of its imagery on disk.
+  and optionally opt an area in to keep a local copy of its imagery on disk. That
+  local cache (only the small preview thumbnails, not full-resolution assets) is
+  capped at `imagery_cache_max_mb` (default 500) total across all areas — oldest
+  cached previews are evicted first once it's full.
 
 **Not included:** the AIS relay (live vessel/ship tracking). That's an always-on
 extra process that also needs its own `AISSTREAM_API_KEY`. Every other panel works
@@ -40,6 +43,7 @@ panels while the seed loop repopulates the cache.
 | `openrouter_api_key` | Free at https://openrouter.ai — the primary LLM provider for this add-on's default config (see below) |
 | `seed_interval_minutes` | How often to re-run the seed scripts (default 30) |
 | `imagery_watch_interval_minutes` | How often Imagery Watch re-checks subscribed areas for new satellite imagery (default 60) |
+| `imagery_cache_max_mb` | Total disk space for Imagery Watch's local preview cache, across all opted-in areas (default 500) |
 | `extra_env` | List of `KEY=VALUE` strings for any other upstream env var |
 
 Everything in `extra_env` is exported as-is before the app starts. Useful free-tier keys
