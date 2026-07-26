@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.8.0
+
+- Add **time-lapse Replay mode** to Imagery Watch. Any tracked area with 2+
+  captures gets a "▶ Replay" toggle next to its thumbnail grid: steps
+  through history oldest-to-newest with play/pause, prev/next, and a
+  scrubber. Real revisit cadence is irregular (Sentinel-2 ~5 days, NAIP
+  much less often), so this reads as a slideshow with visible time jumps
+  rather than a smooth video — that's genuinely how the data lands, not a
+  bug.
+- Alongside each replay frame, a dark/monospace "technical readout" panel
+  (styled to match the existing on-globe marker-tooltip look) shows the
+  area name, its coordinates, source + resolution, capture timestamp,
+  time elapsed since the previous frame, and frame position — everything
+  you'd want at a glance while stepping through a sequence.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.7.3
 
 - No code change from 1.7.2 -- re-tagged after a local Windows build of

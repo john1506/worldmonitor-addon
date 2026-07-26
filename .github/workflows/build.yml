@@ -15,6 +15,12 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Normal builds (arm64 via QEMU emulation) take 18-24min. Without an
+    # explicit cap this falls back to GitHub's default 360min timeout, so a
+    # genuinely wedged run (seen twice in a row on 2026-07-26, same step,
+    # no reported GitHub incident at the time) silently burns hours of CI
+    # time instead of failing loud and letting a retry take over quickly.
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
