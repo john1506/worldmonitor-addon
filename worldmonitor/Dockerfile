@@ -1,20 +1,23 @@
 # =============================================================================
 # World Monitor — Home Assistant Add-on image
 #
-# Wraps koala73/worldmonitor (self-hosted build) for HA Supervisor + Ingress.
-# Reuses the upstream project's own multi-stage build (builder/runtime-deps)
-# unmodified, then adds: a local Redis + Redis-REST proxy (so the dashboard
-# has data to show instead of the "0/55 OK" empty state upstream warns about
-# without a seeded cache), the seed scripts + full deps to re-seed
-# periodically in-container, an options.json -> env bridge for HA's add-on
-# configuration UI, and (optionally, if aisstream_api_key is set) the
-# upstream relay process (scripts/ais-relay.cjs) that backs AIS vessel
-# tracking, oref-alerts, and telegram-feed — idle otherwise since it needs
-# its own free API key from aisstream.io. Every other panel is seeded from
-# free public data sources with no key required.
+# Wraps john1506/worldmonitor (self-hosted build) for HA Supervisor + Ingress —
+# our own fork of koala73/worldmonitor's `self-hosted` branch, which carries
+# a set of self-hosted-specific panel/feature unlocks as normal commits on
+# top of upstream (see that branch's history, and FORK.md, for how to pull in
+# upstream fixes later). Reuses the upstream project's own multi-stage build
+# (builder/runtime-deps) unmodified, then adds: a local Redis + Redis-REST
+# proxy (so the dashboard has data to show instead of the "0/55 OK" empty
+# state upstream warns about without a seeded cache), the seed scripts + full
+# deps to re-seed periodically in-container, an options.json -> env bridge
+# for HA's add-on configuration UI, and (optionally, if aisstream_api_key is
+# set) the upstream relay process (scripts/ais-relay.cjs) that backs AIS
+# vessel tracking, oref-alerts, and telegram-feed — idle otherwise since it
+# needs its own free API key from aisstream.io. Every other panel is seeded
+# from free public data sources with no key required.
 # =============================================================================
 
-ARG WORLDMONITOR_REF=396efb905fadda74c4ae77080a1e72658c37aa0e
+ARG WORLDMONITOR_REF=f721f9e39e8a791ea9e932cc9a6bda98e2bcd723
 ARG NODE_BASE=node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
 
 # ── Stage 1: Builder (upstream's own build steps, verbatim) ─────────────────
@@ -22,133 +25,21 @@ FROM ${NODE_BASE} AS builder
 ARG WORLDMONITOR_REF
 WORKDIR /app
 
+# Builds from our own fork (github.com/john1506/worldmonitor, `self-hosted`
+# branch) rather than koala73/worldmonitor + a pile of git-apply patch steps.
+# The fork's self-hosted branch carries the same self-hosted-specific changes
+# that used to live as rootfs/source-patches/*.patch (panel/feature unlocks
+# — see that branch's commit history for the individual rationale behind
+# each one), just as normal commits on top of upstream instead of patches
+# reapplied at every build. WORLDMONITOR_REF pins an exact commit SHA on that
+# branch, same reproducibility guarantee the old upstream-ref pin gave.
+#
+# To pull in upstream fixes later: in the fork, `git fetch upstream && git
+# rebase upstream/main` on `self-hosted`, resolve conflicts, force-push, then
+# re-pin WORLDMONITOR_REF here to the new SHA — see FORK.md.
 RUN apk add --no-cache git \
-    && git clone https://github.com/koala73/worldmonitor.git . \
+    && git clone https://github.com/john1506/worldmonitor.git . \
     && git checkout "${WORLDMONITOR_REF}"
-
-# Vanilla self-hosted client: removes the panels that carry premium: 'locked'
-# (Stock Analysis, Backtesting, Daily Market Brief, WM Analyst, Global
-# Procurement, Trade Policy, Latest Brief, WSB Ticker Scanner, AI Market
-# Implications, Regional Intelligence, Deduct Situation) from every variant's
-# panel config, and drops the App.ts call site for the "Upgrade to Pro"
-# banner. Real source-level removal (not a post-build patch) since these are
-# scattered across 5 variant config blocks plus a standalone component --
-# cleanest done before the TS build runs, so search/settings/category lists
-# never see these keys at all rather than hiding an entitlement-gated stub.
-# `premium: 'enhanced'` panels (Country Instability, Strategic Risk, Live
-# Intelligence, Supply Chain) are untouched -- those already work fully for
-# free users, Pro just adds bonus extras on top. Verified clean against this
-# exact pinned commit: `npx tsc --noEmit` passes with the patch applied.
-# Pinned to WORLDMONITOR_REF above -- bumping that ref may require manually
-# re-resolving conflicts in this patch (see rootfs/source-patches/README, if
-# one gets added) rather than it applying automatically forever.
-COPY rootfs/source-patches/vanilla-client.patch /tmp/vanilla-client.patch
-RUN git apply /tmp/vanilla-client.patch && \
-    ! grep -q "'stock-analysis':.*premium: 'locked'" src/config/panels.ts && \
-    ! grep -q "showProBanner" src/App.ts || \
-      (echo "ERROR: vanilla-client patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
-
-# FREE_MAX_PANELS/FREE_MAX_SOURCES (40/80) are enforced independently at ~4
-# separate call sites (App.ts boot-time trim, the settings-window panel/source
-# toggle handlers, and panel-layout.ts's add-panel path) — all reading the
-# same two exported constants, so raising them to Infinity here neutralizes
-# every enforcement path in one place. Deliberately NOT patching isProUser()
-# itself: that function also gates unrelated Pro cloud features (search
-# enhancements, widget entitlements) that this self-hosted image can't
-# actually fulfill without real worldmonitor.app credentials, so faking
-# "everyone is Pro" would silently break those instead of just lifting a
-# capacity cap. This complements (does not replace) the existing main-*.js
-# sed patch below, which only covers the single App.ts boot-time path.
-COPY rootfs/source-patches/free-tier-uncap.patch /tmp/free-tier-uncap.patch
-RUN git apply /tmp/free-tier-uncap.patch && \
-    grep -q "FREE_MAX_PANELS = Infinity" src/config/panels.ts && \
-    grep -q "FREE_MAX_SOURCES = Infinity" src/config/panels.ts || \
-      (echo "ERROR: free-tier-uncap patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
-
-# The "Historical Playback" scrubber (15-min dashboard snapshots — news event
-# clusters, market prices, hotspot levels — captured into the browser's own
-# IndexedDB, no cloud dependency) exists in upstream but was hidden entirely
-# behind `el.style.display = isPro ? '' : 'none'` in
-# EventHandlerManager.setupPlaybackControl(), gated on Clerk's
-# `user?.role === 'pro'` directly rather than going through
-# isPanelEntitled/isProUser. Since the snapshot data is captured and stored
-# locally with zero reliance on worldmonitor.app's infra, there's no
-# capability gap justifying the gate on a self-hosted image. Removes the
-# gate function and its auth-state subscription entirely; the control is
-# just always shown now (same reasoning as the free-tier-uncap patch above).
-COPY rootfs/source-patches/playback-unlock.patch /tmp/playback-unlock.patch
-RUN git apply /tmp/playback-unlock.patch && \
-    ! grep -q "trackGateHit('playback')" src/app/event-handlers.ts || \
-      (echo "ERROR: playback-unlock patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
-
-# The Settings modal's "API Keys" / "MCP Clients" tabs are for generating
-# tokens against worldmonitor.app's *own* cloud REST/MCP API (so a script or
-# an AI client like Claude Desktop can query their hosted service) — this is
-# a genuinely different thing from the free "bring your own third-party API
-# key" settings (Groq/OpenRouter/FRED/etc.), and unlike the playback
-# scrubber above, it has no local/self-hosted equivalent: `hasFeature
-# ('apiAccess'/'mcpAccess')` reads the real Convex/Dodo subscription
-# entitlement snapshot and `createApiKey`/`listMcpClients` hit
-# worldmonitor.app's actual backend, none of which this image can obtain or
-# fake. So rather than "unlock" a tab that would just point at a real
-# paywall, this removes the two tab buttons entirely (same low-risk pattern
-# as the ProBanner removal in the vanilla-client patch — the underlying
-# render methods/handlers are untouched but become unreachable, since
-# nothing else in the app can navigate to these tab IDs).
-COPY rootfs/source-patches/api-keys-tab-remove.patch /tmp/api-keys-tab-remove.patch
-RUN git apply /tmp/api-keys-tab-remove.patch && \
-    ! grep -q 'data-tab="api-keys"' src/components/UnifiedSettings.ts || \
-      (echo "ERROR: api-keys-tab-remove patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
-
-# CMD+K search's flight-callsign lookup has two tiers: (1) instantly search
-# whatever ADS-B/military positions the globe is ALREADY tracking (fed in as
-# plain arrays by the caller — zero new network calls), and (2) a "search
-# live flight X" fallback that calls the paid RPC for callsigns not
-# currently tracked. Only tier 1 was gated behind isProUser() in
-# SearchManager.updateFlightSource — pure client-side indexing of data
-# already fetched via this add-on's own free OpenSky relay (see
-# scripts/ais-relay.cjs / RELAY_SHARED_SECRET, unrelated to any paid
-# worldmonitor.app credential). Tier 2 (setOnFlightSearch, still checked
-# against the running add-on: `/api/aviation/v1/track-aircraft` genuinely
-# 401s) is untouched — same reasoning as leaving Resilience Ranking gated.
-COPY rootfs/source-patches/flight-search-unlock.patch /tmp/flight-search-unlock.patch
-RUN git apply /tmp/flight-search-unlock.patch && \
-    ! grep -q '!this.ctx.searchModal || !isProUser()' src/app/search-manager.ts || \
-      (echo "ERROR: flight-search-unlock patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
-
-# `airline-intel` panel ships enabled:true by default in FULL/TECH/FINANCE/
-# COMMODITY, but the "Flights" map layer that feeds it (DeckGLMap only polls
-# aircraft positions when this.state.layers.flights is true) ships
-# false — the panel is on-screen by default but permanently empty until a
-# user separately discovers and toggles an unrelated map-layer checkbox.
-# Verified live end-to-end (ais-relay -> local-api-server -> nginx, real
-# aircraft data at every hop) that the pipeline itself works fine; this was
-# purely a default-value mismatch, not a capability gap. Flips flights:false
-# -> true only in the variants where airline-intel is a default panel
-# (leaves HAPPY/ENERGY, which don't ship that panel, untouched).
-COPY rootfs/source-patches/flights-layer-default-on.patch /tmp/flights-layer-default-on.patch
-RUN git apply /tmp/flights-layer-default-on.patch && \
-    [ "$(grep -c 'flights: true' src/config/panels.ts)" = "8" ] || \
-      (echo "ERROR: flights-layer-default-on patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
-
-# App.ts already has a one-time `worldmonitor-panel-prune-v1` migration that
-# deletes any saved panelSettings key no longer in ALL_PANELS -- but it's a
-# ONE-TIME migration (guarded by its own localStorage flag) that already
-# fired for existing users on an earlier version, for unrelated reasons,
-# before the vanilla-client patch removed these 11 panel keys. Since it
-# never runs twice, anyone who had e.g. Stock Analysis enabled before
-# updating keeps a stale saved panelSettings['stock-analysis'] entry
-# (premium:'locked' baked in from before) forever -- explaining reports of
-# "still see premium panels" after updating, even though ALL_PANELS itself
-# is confirmed clean (no matching panel keys in the compiled bundle).
-# Reuses the exact same prune logic under a new, distinct migration key so
-# it's guaranteed to fire once for every existing installation regardless
-# of prune-v1's history. No-op for fresh installs / anyone who never had
-# these panels enabled.
-COPY rootfs/source-patches/panel-key-prune-migration.patch /tmp/panel-key-prune-migration.patch
-RUN git apply /tmp/panel-key-prune-migration.patch && \
-    grep -q "worldmonitor-vanilla-panel-prune-v1" src/App.ts || \
-      (echo "ERROR: panel-key-prune-migration patch did not fully apply — upstream source changed, needs re-check" >&2 && exit 1)
 
 RUN npm ci --ignore-scripts
 

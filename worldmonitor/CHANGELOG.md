@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.0
+
+- Build from a real fork (`github.com/john1506/worldmonitor`, `self-hosted`
+  branch) instead of `koala73/worldmonitor` + 7 `git apply`'d patch files.
+  The 7 patches shipped through 1.4.4 (vanilla-client, free-tier-uncap,
+  playback-unlock, api-keys-tab-remove, flight-search-unlock,
+  flights-layer-default-on, panel-key-prune-migration) are now individual
+  commits on the fork's `self-hosted` branch, on top of the same pinned
+  upstream commit — same behavior, verified with `tsc --noEmit` against the
+  migrated fork before switching the Dockerfile over. `rootfs/source-
+  patches/` is gone; `WORLDMONITOR_REF` now pins a commit SHA on our own
+  fork rather than upstream directly. See `FORK.md` for the rebase workflow
+  to pull in upstream fixes going forward. No user-visible behavior change
+  — this is purely a maintainability move, made now because the next
+  feature (satellite imagery tracking/replay) is real new functionality
+  that doesn't fit the patch-file model at all.
+
 ## 1.4.4
 
 - Fix: existing users (anyone who had the add-on running before 1.3.0)

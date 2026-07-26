@@ -97,7 +97,10 @@ no separate port or login needed.
 The add-on packaging itself lives at https://github.com/john1506/worldmonitor-addon —
 its `.github/workflows/build.yml` rebuilds and pushes the image to GHCR on every push to
 `main`. The Dockerfile it builds clones and compiles
-https://github.com/koala73/worldmonitor from source, pinned to commit
-`396efb905fadda74c4ae77080a1e72658c37aa0e` (the `WORLDMONITOR_REF` build arg). Bump that
-arg and push to pick up newer upstream commits — GitHub Actions rebuilds and re-pushes
-automatically; the Pi only ever pulls the finished image.
+https://github.com/john1506/worldmonitor's `self-hosted` branch from source, pinned to
+a specific commit (the `WORLDMONITOR_REF` build arg) — our own fork of
+https://github.com/koala73/worldmonitor carrying a set of self-hosted-specific
+panel/feature unlocks as normal commits on top of upstream (see the fork's commit
+history, and its `FORK.md`, for how those get maintained and how upstream fixes get
+pulled in). GitHub Actions rebuilds and re-pushes this add-on's image automatically on
+every push to `main`; the Pi only ever pulls the finished image.
