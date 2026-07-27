@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.12.0
+
+- Add **Flat Earth View** \u{1F9CA}: a just-for-fun 3D novelty view, opened
+  from a new button next to the map's fullscreen/pin controls. Renders a
+  flat disc textured with a real azimuthal-equidistant reprojection of
+  the app's own country-border data (north-pole-centered -- the same
+  legitimate projection behind the UN emblem), surrounded by a literal
+  ice wall right at the disc's edge -- which is exactly where Antarctica
+  lands in this projection (distance from the pole maps linearly to
+  radius, so it stretches into a ring around the whole outer rim). Drag
+  to look around, scroll to zoom. Static/first-pass scope: real country
+  outlines baked into one texture, no live data layers plotted on it yet.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`. Also adds
+  `three` as an explicit direct npm dependency (was already resolved
+  transitively via `globe.gl`/`three-globe` at the same version).
+
 ## 1.11.0
 
 - Add `imagery_cache_max_mb` option: Imagery Watch's local preview cache
