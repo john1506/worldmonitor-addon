@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.13.0
+
+- Flat Earth View now uses **real NASA satellite imagery** instead of a
+  pure vector-outline texture: reprojects NASA GIBS' Blue Marble tiles
+  (same source as the globe's "NASA HD Tiles" option) from Web Mercator
+  into the disc's azimuthal-equidistant projection. Latitudes beyond
+  Mercator's ~85° coverage limit get a flat icy fill, which lands right
+  at the disc's center (north pole) and just inside the outer rim (south
+  pole) -- blending into the ice wall already there. Country border
+  outlines still render on top.
+- Adds **live conflict-event markers** (UCDP data) plotted at their real
+  positions on the disc, clickable for a small tooltip (country,
+  fatalities, date).
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.12.0
 
 - Add **Flat Earth View** \u{1F9CA}: a just-for-fun 3D novelty view, opened

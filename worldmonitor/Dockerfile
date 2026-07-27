@@ -17,7 +17,7 @@
 # from free public data sources with no key required.
 # =============================================================================
 
-ARG WORLDMONITOR_REF=1618f4228cc401752544a0194fb273222421bd2f
+ARG WORLDMONITOR_REF=0ad59adda597f4525a5f5368dcfaa7efe2f37e28
 ARG NODE_BASE=node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
 
 # ── Stage 1: Builder (upstream's own build steps, verbatim) ─────────────────
