@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.1
+
+- Fix Flat Earth View: the NASA imagery reprojection had a sign bug in
+  its inverse formula, so real terrain rendered but mirrored relative
+  to the correctly-projected country border outlines drawn on top --
+  user-reported and confirmed via screenshot before fixing.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.13.0
 
 - Flat Earth View now uses **real NASA satellite imagery** instead of a
