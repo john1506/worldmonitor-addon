@@ -62,6 +62,17 @@ export REDIS_TOKEN="$(node -e "console.log(require('node:crypto').randomBytes(32
 
 export UPSTASH_REDIS_REST_URL="http://127.0.0.1:8079"
 export UPSTASH_REDIS_REST_TOKEN="$REDIS_TOKEN"
+# scripts/ais-relay.cjs's own UPSTASH_ENABLED check requires the REST URL to
+# start with https:// by default (a genuine Upstash misconfiguration in
+# production shouldn't silently downgrade to plaintext) -- our proxy is
+# always plain http://127.0.0.1, so without this it never satisfies that
+# check and every subsystem ais-relay.cjs bundles (UCDP, satellites, market,
+# cyber, tech events, and ~15 others) silently no-ops forever, logging
+# "Disabled (no Upstash Redis)" despite Redis working fine for everything
+# else. Documented upstream in SELF_HOSTING.md as the exact fix for exactly
+# this setup (loopback-only proxy, never reachable outside the container --
+# see the comment above on REDIS_PASSWORD/REDIS_TOKEN).
+export UPSTASH_ALLOW_INSECURE_HTTP="true"
 export LOCAL_API_MODE="docker"
 export LOCAL_API_CLOUD_FALLBACK="false"
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.14.0
+
+- **Fix**: `scripts/ais-relay.cjs` bundles ~20 in-container seed loops
+  (UCDP conflict events, satellites, market data, cyber, tech events,
+  and more) behind its own `UPSTASH_ENABLED` check, which requires the
+  Redis REST URL to start with `https://` by default -- our local
+  redis-rest proxy is always plain `http://127.0.0.1`, so every one of
+  those subsystems was silently no-op'ing forever, logging "Disabled
+  (no Upstash Redis)" despite Redis working fine for everything else in
+  the add-on. This is documented upstream in `SELF_HOSTING.md` as an
+  explicit opt-in (`UPSTASH_ALLOW_INSECURE_HTTP=true`) for exactly this
+  setup -- safe here since the proxy is loopback-only and never exposed
+  outside the container. Root-caused after a user reported Flat Earth
+  View showing no conflict markers.
+- Add a **Signals layers panel** to Flat Earth View (top-left toggle
+  panel) for turning individual live-data overlays on/off -- currently
+  just "Conflict events", built to extend to more signal types later.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.13.1
 
 - Fix Flat Earth View: the NASA imagery reprojection had a sign bug in
