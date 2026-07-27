@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.15.0
+
+- Add a real-position **Sun & Moon** to Flat Earth View: accurate subsolar
+  point (verified against known solstice/equinox declinations) drives
+  both a visible sun marker and the scene's actual lighting direction;
+  moon phase (illuminated %, name) from a robust synodic-period
+  calculation verified against known real full/new/quarter-moon dates,
+  with position derived from the sun's position plus the phase angle.
+  The moon's crescent/gibbous appearance comes from real 3D lighting on
+  a plain sphere, not a hand-drawn shadow texture. Adds a toggleable
+  **day/night shading** overlay (same +/-6deg twilight-band convention
+  as real day/night maps).
+- Add most of the 2D/3D map's own layers to Flat Earth View: conflict
+  zones, intel hotspots, military bases, nuclear facilities, gamma
+  irradiators, spaceports, critical minerals, economic centers,
+  strategic waterways, undersea cables, pipelines, earthquakes, GPS
+  jamming, and radiation watch -- reusing the same static reference
+  data and live-fetch services the main map already uses. Live layers
+  are cached (survives a page reload) and refresh every 5 minutes,
+  only replacing what's shown on a successful fetch. All layers get a
+  toggle in the (now scrollable) Signals panel.
+- Fix: the ice wall was too tall and "looked a bit hilarious" -- reduced
+  its height, tapered it (sloped ice-ridge profile instead of a sheer
+  cylinder), and faded its top edge into the fog instead of a hard rim.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.14.0
 
 - **Fix**: `scripts/ais-relay.cjs` bundles ~20 in-container seed loops
