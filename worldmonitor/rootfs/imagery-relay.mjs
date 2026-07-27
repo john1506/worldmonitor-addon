@@ -44,6 +44,21 @@ const EVENTS_MAX = 200; // capped notification-event log
 // scene" action could still fetch the COG on demand; this is just the
 // automatic per-scene cache.
 const CACHE_DIR = process.env.IMAGERY_CACHE_DIR || '/data/imagery-cache';
+
+// Server-side proxy+cache for the two NASA GIBS layers the client's globe
+// (NASA HD Tiles texture) and Flat Earth View both use. Without this, every
+// browser that opens either feature re-fetches the same ~512 tiles directly
+// from NASA's free service on every load -- fine occasionally, wasteful as
+// a matter of course. This is a small, naturally-bounded cache (a fixed tile
+// grid per layer at a fixed zoom, not something that grows with usage like
+// the imagery-watch cache above), so it gets its own subdirectory and a
+// plain TTL instead of participating in that cache's size-based eviction.
+const NASA_TILE_CACHE_DIR = path.join(CACHE_DIR, 'nasa-tiles');
+const NASA_TILE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const NASA_TILE_LAYERS = {
+  'blue-marble': 'BlueMarble_NextGeneration',
+  'city-lights': 'VIIRS_CityLights_2012',
+};
 // User-configurable via the add-on's imagery_cache_max_mb option (default
 // 500MB, same as before this was made configurable); clamp to a sane range
 // so a bad options.json value can't zero out the cache or let it grow
@@ -554,6 +569,45 @@ const server = http.createServer(async (req, res) => {
       return res.end(buf);
     } catch {
       return sendJson(res, 404, { error: 'not cached' });
+    }
+  }
+
+  // ---- NASA GIBS tile proxy+cache (Blue Marble / VIIRS city lights) ----
+  // Routed here because it falls under the already-proxied
+  // /api/imagery-watch/ nginx prefix -- no separate nginx patch needed.
+  const nasaTileMatch = url.pathname.match(/^\/api\/imagery-watch\/v1\/nasa-tiles\/([^/]+)\/(\d+)\/(\d+)\/(\d+)\.jpg$/);
+  if (nasaTileMatch) {
+    const [, layerKey, zoom, x, y] = nasaTileMatch;
+    const gibsLayer = NASA_TILE_LAYERS[layerKey];
+    if (!gibsLayer) return sendJson(res, 400, { error: 'unknown layer' });
+
+    const cachePath = path.join(
+      NASA_TILE_CACHE_DIR, safeFileToken(layerKey), safeFileToken(zoom), safeFileToken(x), `${safeFileToken(y)}.jpg`,
+    );
+    if (!path.resolve(cachePath).startsWith(path.resolve(NASA_TILE_CACHE_DIR) + path.sep)) {
+      return sendJson(res, 400, { error: 'invalid tile coordinates' });
+    }
+
+    try {
+      let buf;
+      try {
+        const stat = await fs.stat(cachePath);
+        if (Date.now() - stat.mtimeMs < NASA_TILE_CACHE_TTL_MS) buf = await fs.readFile(cachePath);
+      } catch {
+        // Not cached yet (or stale) -- fall through to fetch below.
+      }
+      if (!buf) {
+        const gibsUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${gibsLayer}/default/GoogleMapsCompatible_Level8/${zoom}/${y}/${x}.jpeg`;
+        const upstream = await fetch(gibsUrl, { signal: AbortSignal.timeout(15_000) });
+        if (!upstream.ok) return sendJson(res, upstream.status, { error: `NASA GIBS returned HTTP ${upstream.status}` });
+        buf = Buffer.from(await upstream.arrayBuffer());
+        await fs.mkdir(path.dirname(cachePath), { recursive: true });
+        await fs.writeFile(cachePath, buf);
+      }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(buf);
+    } catch (err) {
+      return sendJson(res, 502, { error: `tile fetch failed: ${err?.message || err}` });
     }
   }
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.16.0
+
+- Flat Earth View's day/night shading now blends in **real NASA VIIRS
+  city-lights imagery** on the night side, plus a stylistic moonlit-sea
+  glint over ocean-like areas (an approximation, not physically exact --
+  no real per-viewing-angle reflection in a baked texture).
+- Add an **animated satellites layer**: real TLEs + SGP4 propagation
+  (reusing the same `satellite.js` infrastructure the 3D globe's own
+  satellite layer already uses), positions updated every 2s so
+  satellites actually move across the disc.
+- **Server-side NASA tile cache**: `imagery-relay.mjs` now proxies and
+  caches NASA GIBS tile requests (Blue Marble + city lights, 24h TTL)
+  instead of every browser fetching the same ~512-tile grid directly
+  from NASA on every load. This also benefits the 3D globe's existing
+  "NASA HD Tiles" texture option, which now goes through the same local
+  cache. Client-side, imagery is also cached in-memory (same page load)
+  and in IndexedDB (survives a reload).
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`. Also
+  touches `imagery-relay.mjs` (rootfs) for the new tile-cache route.
+
 ## 1.15.0
 
 - Add a real-position **Sun & Moon** to Flat Earth View: accurate subsolar
