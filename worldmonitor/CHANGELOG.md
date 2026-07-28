@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.21.0
+
+- Flat Earth View: **Starlink can now be tracked, opt-in.** Added as its own
+  country-filter bucket ("Starlink (SpaceX, US)", nested under the
+  Satellites layer toggle alongside the existing per-country checkboxes) --
+  kept separate from the existing "United States" bucket so toggling it
+  doesn't also hide actual US ISR satellites. Defaults **off**: at ~7,000
+  satellites it's a real jump in marker count versus every other bucket
+  (tens each), and markers are real DOM elements repositioned every
+  animation frame, so this is opt-in rather than something that changes
+  the view for everyone the moment it updates.
+- The 3D globe view is unaffected -- it has no per-country filter of its
+  own, so it explicitly excludes Starlink rather than silently rendering
+  ~7,000 extra markers with no way to hide them.
+- Frontend-only change plus a seed-script update (`seed-satellites.mjs`
+  now classifies Starlink into its own bucket instead of not matching any
+  filter at all); bumps `WORLDMONITOR_REF`.
+
 ## 1.20.0
 
 - Flat Earth View: added a **"Relief shading"** layer -- a real-terrain-

@@ -1,7 +1,8 @@
 /**
  * Fetches NORAD TLEs from CelesTrak (free, no-auth) for military/ISR/SAR/optical
- * reconnaissance satellites and seeds Redis key `intelligence:satellites:tle:v1`,
- * which server/worldmonitor/intelligence/v1/list-satellites.ts reads.
+ * reconnaissance satellites (plus, opt-in, Starlink -- see below) and seeds
+ * Redis key `intelligence:satellites:tle:v1`, which
+ * server/worldmonitor/intelligence/v1/list-satellites.ts reads.
  *
  * Recovered from scripts/ais-relay.cjs's seedSatelliteTLEs() (the Railway relay
  * service, which isn't part of this self-hosted add-on) and adapted to the
@@ -17,13 +18,23 @@
  * The real Russian ISR/recon birds (Persona `COSMOS 2506`, Bars-M `COSMOS
  * 2503/2515/2556`, GEO-IK `COSMOS 2517`, etc.) exist in CelesTrak's data but
  * aren't tagged into either curated group; they're only reachable via the
- * full `active` catalog. NAME_FILTERS below is still the real gate on what
- * survives into the seeded payload, so this only adds reachability for
- * satellites that already match an existing filter (Russian ones); it does
- * NOT pull in unrelated constellations like Starlink, which matches no
- * filter here by design -- this seeder is scoped to military/ISR
- * reconnaissance satellites, not a general satellite tracker, and Starlink
- * alone is ~7,000 satellites (a different feature/scale entirely).
+ * full `active` catalog.
+ *
+ * Starlink: `active` already contains all ~7,000 Starlink satellites (no
+ * separate GROUP fetch needed for it), and NAME_FILTERS below now includes
+ * them, classified under their own 'STARLINK' bucket (not folded into 'US',
+ * which stays reserved for actual US ISR birds -- see FlatEarthView.ts's
+ * satelliteCountryFilter, which lets each bucket be toggled independently).
+ * The client defaults this one bucket to *off* (see
+ * SAT_COUNTRY_DEFAULT_ENABLED in FlatEarthView.ts) -- this seeder still
+ * always seeds all of them regardless of that client-side default, since
+ * seeding is genuinely free either way (it's the same `active` fetch/parse
+ * pass this already does) and the default only controls what's rendered.
+ * At ~7,000 markers this is a real client-side rendering-volume jump versus
+ * every other bucket here (tens each) -- CSS2DObject markers are real DOM
+ * elements repositioned every animation frame, so if this turns out
+ * sluggish once actually toggled on, the fix is a lighter-weight rendering
+ * path for just this bucket (e.g. WebGL sprites), not reverting the filter.
  *
  * Run: node scripts/seed-satellites.mjs
  */
@@ -46,6 +57,7 @@ const NAME_FILTERS = [
   /^GOKTURK/i, /^RASAT/i,
   /^USA[ -]?\d/i,
   /^ZIYUAN/i,
+  /^STARLINK/i,
 ];
 
 function classify(name) {
@@ -54,6 +66,7 @@ function classify(name) {
   if (/COSMO-SKYMED|TERRASAR|PAZ|SAR-LUPE|YAOGAN/i.test(n)) type = 'sar';
   else if (/WORLDVIEW|SKYSAT|PLEIADES|KOMPSAT|GAOFEN|JILIN|CARTOSAT|ZIYUAN/i.test(n)) type = 'optical';
   else if (/SAPPHIRE|PRAETORIAN|USA|GOKTURK/i.test(n)) type = 'military';
+  else if (/^STARLINK/i.test(n)) type = 'comms';
 
   let country = 'OTHER';
   if (/^YAOGAN|^GAOFEN|^JILIN|^ZIYUAN/i.test(n)) country = 'CN';
@@ -63,6 +76,11 @@ function classify(name) {
   else if (/^KOMPSAT/i.test(n)) country = 'KR';
   else if (/^CARTOSAT/i.test(n)) country = 'IN';
   else if (/^GOKTURK|^RASAT/i.test(n)) country = 'TR';
+  // Its own bucket, not 'US' -- Starlink is ~7,000 satellites, and folding
+  // it into 'US' would make that one checkbox toggle actual US ISR birds
+  // and the entire Starlink constellation together, defeating the point of
+  // per-country filtering.
+  else if (/^STARLINK/i.test(n)) country = 'STARLINK';
 
   return { type, country };
 }
