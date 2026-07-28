@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.17.1
+
+- Flat Earth View's satellites now match the 3D globe's own marker style:
+  **color-coded by operating country** (same mapping as the globe), a
+  **translucent visibility "shroud"** flaring from each satellite's real
+  position down to a footprint circle on the ground, and a small
+  **ground-footprint ring** at that point -- previously they were plain
+  uniform-colored dots with no beam/footprint at all.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.17.0
 
 - Flat Earth View's point layers (hotspots, military bases, nuclear
