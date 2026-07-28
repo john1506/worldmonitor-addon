@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.20.0
+
+- Flat Earth View: added a **"Relief shading"** layer -- a real-terrain-
+  elevation overlay (NASA GIBS' BlueMarble_ShadedRelief) that darkens
+  shadowed slopes and valleys against the basemap, so mountain ranges,
+  plateaus, and lowlands actually read visually instead of the disc looking
+  uniformly flat everywhere. Toggleable, on by default, same overlay-mesh
+  technique the existing day/night shading uses.
+- Backend: the NASA tile proxy (imagery-relay.mjs) now also serves this
+  layer -- one line added to its existing generic layer map, no new route.
+- Frontend-only change plus this backend addition; bumps `WORLDMONITOR_REF`.
+
 ## 1.19.1
 
 - Fixed Russian satellites never appearing in the Satellites layer at all.

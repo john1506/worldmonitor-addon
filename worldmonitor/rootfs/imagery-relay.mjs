@@ -58,6 +58,14 @@ const NASA_TILE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const NASA_TILE_LAYERS = {
   'blue-marble': 'BlueMarble_NextGeneration',
   'city-lights': 'VIIRS_CityLights_2012',
+  // Blue Marble imagery pre-lit against real terrain elevation (visible
+  // mountain shadows, snow, valleys) -- backs Flat Earth View's relief-
+  // shading overlay (src/components/FlatEarthView.ts's
+  // buildReliefShadingTexture derives a grayscale darkening multiplier from
+  // this layer's luminance, rather than showing its own colors directly).
+  // Confirmed directly against GIBS (2026-07-28) that this layer resolves
+  // at the same GoogleMapsCompatible_Level8 tile matrix the other two use.
+  'shaded-relief': 'BlueMarble_ShadedRelief',
 };
 // User-configurable via the add-on's imagery_cache_max_mb option (default
 // 500MB, same as before this was made configurable); clamp to a sane range
