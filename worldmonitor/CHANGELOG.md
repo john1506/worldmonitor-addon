@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.17.3
+
+- Flat Earth View: fixed the layers panel and click tooltip sometimes
+  rendering *underneath* marker glyphs (most visible with a dense layer
+  like GPS jamming's hex grid, which can put 100+ markers on screen at
+  once). Cause: three.js's `CSS2DRenderer` assigns each marker element an
+  escalating inline `z-index` for camera-distance sorting, and the
+  viewport container wasn't scoping those values into their own stacking
+  context, so a high marker count could outrank the UI panels' z-index.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.17.2
 
 - Flat Earth View: the disc was rendering almost uniformly grey regardless
