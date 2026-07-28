@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.17.0
+
+- Flat Earth View's point layers (hotspots, military bases, nuclear
+  facilities, irradiators, spaceports, minerals, economic centers,
+  waterways, earthquakes, GPS jamming, radiation watch, conflicts,
+  satellites) now render as **HTML/CSS glyph markers** instead of plain
+  WebGL sphere meshes -- same technique the 3D globe's own markers use
+  (three.js's `CSS2DRenderer`), same glyph per layer as its Signals-panel
+  label, with a colored glow instead of a uniform blob. Click/tooltip
+  handling moved from a scene-wide raycast to a direct click listener on
+  each marker element.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.16.0
 
 - Flat Earth View's day/night shading now blends in **real NASA VIIRS
