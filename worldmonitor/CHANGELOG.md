@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.17.2
+
+- Flat Earth View: the disc was rendering almost uniformly grey regardless
+  of the actual NASA imagery, from two compounding causes -- scene fog that
+  worked out to a ~65% blend toward near-black at the default camera
+  distance, and the disc's lit material (MeshStandardMaterial) getting
+  double-darkened away from the subsolar point on top of the dedicated
+  day/night overlay already doing that shading. Switched the disc (and the
+  day/night overlay) to unlit rendering with fog disabled on both, and cut
+  the fog density down, so the real imagery colors show clearly.
+- Flat Earth View: tightened the default camera zoom (~23% closer) so
+  closely-spaced markers -- especially satellites -- have more visual
+  separation on screen. CSS2D markers are fixed-pixel-size DOM elements, so
+  this only actually helps by having the disc occupy more of the viewport
+  by default, not from any world-space scale change.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.17.1
 
 - Flat Earth View's satellites now match the 3D globe's own marker style:
