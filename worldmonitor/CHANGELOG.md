@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.18.1
+
+- Flat Earth View: fixed the "Sun & Moon" layer toggle appearing to do
+  nothing. The sun/moon sky spheres were almost invisible either way --
+  heavily faded by scene fog at their distance, and with no marker on the
+  disc itself (unlike every other layer), so there was often nothing in
+  the default camera framing to notice regardless of toggle state. Fixed
+  the fog fade, and added clickable ☀️ / moon-phase-emoji markers at the
+  real subsolar/sublunar ground points, same convention every other layer
+  already uses.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.18.0
 
 - Flat Earth View: **conflict zones are now clickable.** They used to be
