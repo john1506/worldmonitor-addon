@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.19.0
+
+- Flat Earth View: **satellites can now be filtered per operating country.**
+  With dozens to 100+ satellites tracked at once, the only control used to
+  be an all-or-nothing "Satellites" toggle. Nested under it in the layers
+  panel is now one checkbox per country (China, Russia, United States,
+  ESA/EU, South Korea, India, Turkey, Other), each with a color swatch
+  matching that country's dot/beam color, so a busy sky can be thinned down
+  to just the operators someone actually cares about.
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.18.1
 
 - Flat Earth View: fixed the "Sun & Moon" layer toggle appearing to do
