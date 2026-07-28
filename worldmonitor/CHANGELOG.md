@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.18.0
+
+- Flat Earth View: **conflict zones are now clickable.** They used to be
+  baked into a non-interactive shaded overlay with no markers at all, so
+  clicking one did nothing (unlike the 3D globe/2D map, where it always
+  showed the zone's parties/casualties/history). Added a real marker at
+  each zone's center point, colored by intensity, alongside the existing
+  shaded region.
+- Flat Earth View: **every layer's click tooltip now shows much more
+  detail** -- previously most layers surfaced only a single summary line,
+  even though the underlying data (and the 3D globe/2D map's own tooltips)
+  already carry a lot more: operator, operational history, treaties,
+  significance, confidence/corroboration, etc. Satellites specifically
+  gained NORAD ID, operator, the country currently beneath the satellite,
+  altitude band (LEO/MEO/GEO), and orbital inclination -- matching the 3D
+  globe's satellite tooltip field-for-field instead of showing a small
+  subset of it.
+- Flat Earth View: earthquakes now use a '〽' glyph instead of the 🌍 globe
+  emoji, matching the glyph the 3D globe's own natural-disaster layer
+  already uses for earthquakes (🌍 read as an odd choice for a marker on a
+  view that's already a rendered Earth).
+- Frontend-only change, in the fork; bumps `WORLDMONITOR_REF`.
+
 ## 1.17.3
 
 - Flat Earth View: fixed the layers panel and click tooltip sometimes
