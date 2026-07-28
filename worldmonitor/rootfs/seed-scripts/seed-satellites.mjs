@@ -8,7 +8,22 @@
  * standalone scripts/seed-*.mjs convention (see fetch-gpsjam.mjs) so the
  * seed-loop picks it up on its own — no relay, no API key required.
  *
- * Source: celestrak.org/NORAD/elements/gp.php?GROUP={military,resource}&FORMAT=tle
+ * Source: celestrak.org/NORAD/elements/gp.php?GROUP={military,resource,active}&FORMAT=tle
+ *
+ * `active` was added after confirming directly against CelesTrak (2026-07-28)
+ * that its `military`/`resource` groups currently contain zero COSMOS entries
+ * at all -- meaning classify()'s `COSMOS 2[4-9]\d{2}` -> country 'RU' branch
+ * below could never actually fire, regardless of the regex being correct.
+ * The real Russian ISR/recon birds (Persona `COSMOS 2506`, Bars-M `COSMOS
+ * 2503/2515/2556`, GEO-IK `COSMOS 2517`, etc.) exist in CelesTrak's data but
+ * aren't tagged into either curated group; they're only reachable via the
+ * full `active` catalog. NAME_FILTERS below is still the real gate on what
+ * survives into the seeded payload, so this only adds reachability for
+ * satellites that already match an existing filter (Russian ones); it does
+ * NOT pull in unrelated constellations like Starlink, which matches no
+ * filter here by design -- this seeder is scoped to military/ISR
+ * reconnaissance satellites, not a general satellite tracker, and Starlink
+ * alone is ~7,000 satellites (a different feature/scale entirely).
  *
  * Run: node scripts/seed-satellites.mjs
  */
@@ -18,7 +33,7 @@ import { extendExistingTtl } from './_seed-utils.mjs';
 const REDIS_KEY = 'intelligence:satellites:tle:v1';
 const REDIS_TTL = 21_600; // 6h — matches ais-relay.cjs SAT_SEED_TTL
 const UA = 'Mozilla/5.0 (compatible; WorldMonitor/1.0)';
-const GROUPS = ['military', 'resource'];
+const GROUPS = ['military', 'resource', 'active'];
 
 const NAME_FILTERS = [
   /^YAOGAN/i, /^GAOFEN/i, /^JILIN/i,
@@ -56,10 +71,37 @@ async function fetchGroup(group) {
   const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`;
   const resp = await fetch(url, {
     headers: { 'User-Agent': UA },
-    signal: AbortSignal.timeout(15_000),
+    // 25s, not 15s -- `active` is CelesTrak's full public catalog (~16k
+    // satellites, a few MB of TLE text), noticeably bigger than the
+    // `military`/`resource` groups this used to be limited to.
+    signal: AbortSignal.timeout(25_000),
   });
   if (!resp.ok) throw new Error(`CelesTrak ${group}: HTTP ${resp.status}`);
   return resp.text();
+}
+
+// Reads back whatever satellite list is currently seeded, so a cycle where
+// one of GROUPS gets throttled (see the fetchGroup/main comments below) can
+// carry over previously-found satellites instead of silently dropping them
+// for this write. Best-effort: any failure just yields an empty list, same
+// as "nothing to carry over".
+async function fetchExistingSatellites() {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!redisUrl || !redisToken) return [];
+  try {
+    const resp = await fetch(`${redisUrl}/get/${encodeURIComponent(REDIS_KEY)}`, {
+      headers: { Authorization: `Bearer ${redisToken}` },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    if (!data.result) return [];
+    const parsed = JSON.parse(data.result);
+    return Array.isArray(parsed.satellites) ? parsed.satellites : [];
+  } catch {
+    return [];
+  }
 }
 
 async function seedRedis(payload) {
@@ -108,12 +150,22 @@ async function seedRedis(payload) {
 
 async function main() {
   const byNorad = new Map();
+  // CelesTrak enforces a per-IP, per-group ~2h throttle: repeat requests for
+  // the same GROUP before its own next data refresh get back a plain-text
+  // "has not updated" message with HTTP 403, not TLE data (confirmed
+  // directly 2026-07-28). This seeder's default 30-minute cycle re-queries
+  // far more often than that 2h cadence, so hitting this on any given group
+  // is the normal case, not a rare failure -- fetchGroup already throws on
+  // it and the loop below already tolerates a per-group failure, but a
+  // throttled cycle still means fewer raw TLEs to filter from *this* run.
+  const throttledGroups = [];
 
   for (const group of GROUPS) {
     let text;
     try {
       text = await fetchGroup(group);
     } catch (e) {
+      throttledGroups.push(group);
       console.error(`[satellites] Skipping group ${group}:`, e?.message || e);
       continue;
     }
@@ -133,19 +185,35 @@ async function main() {
     }
   }
 
-  const satellites = [];
+  const fresh = [];
   for (const sat of byNorad.values()) {
     if (!NAME_FILTERS.some(rx => rx.test(sat.name))) continue;
     const { type, country } = classify(sat.name);
-    satellites.push({ ...sat, type, country });
+    fresh.push({ ...sat, type, country });
   }
+
+  // Merge with the last-known-good seeded set rather than fully replacing
+  // it -- otherwise a cycle where the `active` group specifically gets
+  // throttled would silently drop every satellite only `active` can reach
+  // (Russian ones especially, see the GROUPS comment above) even though an
+  // earlier successful cycle already found them. Only bothers reading the
+  // previous set back when something was actually throttled this cycle;
+  // TLEs stay reasonably accurate for days, so carrying one over for a
+  // cycle or two costs negligible position accuracy.
+  const merged = new Map(fresh.map(s => [s.noradId, s]));
+  if (throttledGroups.length > 0) {
+    for (const sat of await fetchExistingSatellites()) {
+      if (!merged.has(sat.noradId)) merged.set(sat.noradId, sat);
+    }
+  }
+  const satellites = [...merged.values()];
 
   if (satellites.length === 0) {
     throw new Error('No matching TLEs found across all groups');
   }
 
   const payload = { satellites, fetchedAt: Date.now() };
-  console.error(`[satellites] ${satellites.length} matching satellites from ${byNorad.size} total TLEs`);
+  console.error(`[satellites] ${fresh.length} fresh + ${satellites.length - fresh.length} carried over from cache = ${satellites.length} total (${byNorad.size} raw TLEs this cycle)`);
   await seedRedis(payload);
 }
 

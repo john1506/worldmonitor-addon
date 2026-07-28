@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.19.1
+
+- Fixed Russian satellites never appearing in the Satellites layer at all.
+  Root cause: `scripts/seed-satellites.mjs` only queried CelesTrak's
+  `military`/`resource` groups, and confirmed directly against CelesTrak
+  that neither currently contains *any* COSMOS-named entries -- so the
+  seeder's own `COSMOS 2[4-9]\d{2}` → Russia classification rule could
+  never actually match anything, regardless of being written correctly.
+  Real Russian ISR/recon satellites (Persona, Bars-M, GEO-IK, etc.) exist in
+  CelesTrak's data but aren't tagged into either curated group -- they're
+  only reachable via the full `active` catalog, which is now also queried.
+  This does *not* add Starlink or other unrelated constellations -- the
+  existing name-based allowlist is still the actual gate on what gets
+  seeded, and nothing in it matches Starlink; this seeder is intentionally
+  scoped to military/ISR reconnaissance satellites, not a general tracker
+  (Starlink alone is ~7,000 satellites -- a different feature/scale
+  entirely, and not something this fix takes a position on).
+- Also fixed a related stability issue this surfaced while testing: CelesTrak
+  enforces a per-IP, per-group ~2h throttle (repeat requests before its own
+  next data refresh get an HTTP 403 instead of TLE data), and this add-on's
+  seed loop re-queries every 30 minutes by default -- far more often than
+  that. A throttled cycle used to silently overwrite the seeded satellite
+  list with whatever partial set it found that run, which could make
+  Russian satellites (or others) flicker in and out over time even after
+  the fix above. The seeder now merges each run's freshly-fetched
+  satellites with whatever was already seeded, rather than replacing it
+  outright, whenever a group was throttled that cycle.
+- Backend-only change (a seed script), does not touch `WORLDMONITOR_REF`.
+
 ## 1.19.0
 
 - Flat Earth View: **satellites can now be filtered per operating country.**
