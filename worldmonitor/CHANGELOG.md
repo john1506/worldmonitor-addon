@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.22.1
+
+- Fixed NASA imagery tiles for Flat Earth View failing to load
+  (`net::ERR_FAILED`) after 1.22.0's zoom-detail bump: firing all ~1024
+  tiles/layer at once (~3072 total across the 3 layers) overwhelmed the
+  imagery-relay backend. Tile fetching is now concurrency-limited.
+- The disc can now be zoomed in much closer -- its zoom range was far
+  more conservative than the 3D globe's for no real reason. Very close
+  zoom will still read a bit softer than the equivalent globe zoom
+  (the disc is one baked texture, not a real tile-LOD system), but the
+  usable zoom range is now much closer to parity.
+
 ## 1.22.0
 
 - **Fixed Imagery Watch thumbnails not loading behind HA Ingress.** Preview
