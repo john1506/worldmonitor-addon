@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.22.0
+
+- **Fixed Imagery Watch thumbnails not loading behind HA Ingress.** Preview
+  images (latest-capture cards, capture history, the full-resolution COG
+  viewer's fallback/compare/scene-diff sampling, and the popup previews on
+  both the 3D globe and Flat Earth View) were using the raw cached-preview
+  path directly as an `<img>` src, which breaks once Ingress adds its
+  per-install URL prefix. All of these now route through a shared helper
+  that resolves the correct Ingress-aware path.
+- **Fixed loss of detail when zooming into Flat Earth View.** The disc's
+  imagery was baked once into a single fixed-resolution texture covering
+  the entire globe, so zooming the camera in close just magnified a small,
+  blurry patch of it. Doubled the baked texture resolution (and the source
+  NASA GIBS tile zoom level that feeds it) so close-in zoom actually shows
+  more real detail instead of a smeared blow-up.
+- Fixed relief-shading overlay (added in 1.20.0) spamming the browser
+  console every frame with a three.js `MultiplyBlending requires
+  premultipliedAlpha = true` warning. Worse than cosmetic: without that
+  flag, three.js skips setting the GL blend function for that material
+  entirely rather than falling back to something reasonable, so the
+  darkening pass may not have been applying correctly either.
+
 ## 1.21.0
 
 - Flat Earth View: **Starlink can now be tracked, opt-in.** Added as its own
