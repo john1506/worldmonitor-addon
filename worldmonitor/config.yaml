@@ -1,6 +1,6 @@
 ---
 name: "World Monitor"
-version: "1.22.1"
+version: "1.22.2"
 slug: "worldmonitor"
 description: "Self-hosted real-time geopolitical, financial & climate intelligence dashboard (koala73/worldmonitor)"
 url: "https://github.com/koala73/worldmonitor"
@@ -30,6 +30,8 @@ options:
   imagery_watch_interval_minutes: 60
   imagery_cache_max_mb: 500
   extra_env: []
+  enable_starlink_satellites: false
+  extra_satellite_filters: []
 schema:
   groq_api_key: "password?"
   openrouter_api_key: "password?"
@@ -44,4 +46,7 @@ schema:
   imagery_watch_interval_minutes: "int(5,1440)"
   imagery_cache_max_mb: "int(50,20000)"
   extra_env:
+    - "str"
+  enable_starlink_satellites: "bool"
+  extra_satellite_filters:
     - "str"

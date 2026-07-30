@@ -1,7 +1,8 @@
 /**
  * Fetches NORAD TLEs from CelesTrak (free, no-auth) for military/ISR/SAR/optical
- * reconnaissance satellites (plus, opt-in, Starlink -- see below) and seeds
- * Redis key `intelligence:satellites:tle:v1`, which
+ * reconnaissance satellites (plus, opt-in, Starlink and any add-on-configured
+ * extra constellations -- see below) and seeds Redis key
+ * `intelligence:satellites:tle:v1`, which
  * server/worldmonitor/intelligence/v1/list-satellites.ts reads.
  *
  * Recovered from scripts/ais-relay.cjs's seedSatelliteTLEs() (the Railway relay
@@ -18,23 +19,33 @@
  * The real Russian ISR/recon birds (Persona `COSMOS 2506`, Bars-M `COSMOS
  * 2503/2515/2556`, GEO-IK `COSMOS 2517`, etc.) exist in CelesTrak's data but
  * aren't tagged into either curated group; they're only reachable via the
- * full `active` catalog.
+ * full `active` catalog. This fetch/parse pass always runs regardless of the
+ * Starlink/extra-filter options below -- those only control what gets kept
+ * out of the same `active` response, not whether it's fetched.
  *
  * Starlink: `active` already contains all ~7,000 Starlink satellites (no
- * separate GROUP fetch needed for it), and NAME_FILTERS below now includes
- * them, classified under their own 'STARLINK' bucket (not folded into 'US',
- * which stays reserved for actual US ISR birds -- see FlatEarthView.ts's
- * satelliteCountryFilter, which lets each bucket be toggled independently).
- * The client defaults this one bucket to *off* (see
- * SAT_COUNTRY_DEFAULT_ENABLED in FlatEarthView.ts) -- this seeder still
- * always seeds all of them regardless of that client-side default, since
- * seeding is genuinely free either way (it's the same `active` fetch/parse
- * pass this already does) and the default only controls what's rendered.
- * At ~7,000 markers this is a real client-side rendering-volume jump versus
- * every other bucket here (tens each) -- CSS2DObject markers are real DOM
- * elements repositioned every animation frame, so if this turns out
- * sluggish once actually toggled on, the fix is a lighter-weight rendering
- * path for just this bucket (e.g. WebGL sprites), not reverting the filter.
+ * separate GROUP fetch needed for it), classified under their own 'STARLINK'
+ * bucket (not folded into 'US', which stays reserved for actual US ISR birds
+ * -- see FlatEarthView.ts's satelliteCountryFilter, which lets each bucket be
+ * toggled independently). At ~7,000 markers this is a real cost on two axes:
+ * client-side rendering (CSS2DObject markers are real DOM elements
+ * repositioned every animation frame) AND server-side -- every
+ * list-satellites.ts request re-parses and re-maps the full cached array in
+ * the long-lived worldmonitor-api process, not just this seeder's own
+ * (short-lived, memory-releasing-on-exit) fetch/filter pass. That server-side
+ * cost is what actually drove sustained RSS growth on constrained hosts, not
+ * a leak in this script. Gated behind ENABLE_STARLINK_SATELLITES (add-on
+ * option `enable_starlink_satellites`, default off) for exactly that reason
+ * -- opt back in via the HA add-on configuration panel.
+ *
+ * EXTRA_SATELLITE_FILTERS (add-on option `extra_satellite_filters`, default
+ * empty): arbitrary additional name-prefix strings, matched the same
+ * case-insensitive `^PREFIX` way as the curated list above, each getting its
+ * own 'country' bucket (the literal prefix) so it can be toggled
+ * independently client-side too -- e.g. ["IRIDIUM","ONEWEB"] tracks those
+ * constellations without editing this script. Same recurring-cost caveat as
+ * Starlink applies per constellation size: a few hundred satellites is
+ * fine, another multi-thousand-satellite constellation isn't free.
  *
  * Run: node scripts/seed-satellites.mjs
  */
@@ -45,6 +56,27 @@ const REDIS_KEY = 'intelligence:satellites:tle:v1';
 const REDIS_TTL = 21_600; // 6h — matches ais-relay.cjs SAT_SEED_TTL
 const UA = 'Mozilla/5.0 (compatible; WorldMonitor/1.0)';
 const GROUPS = ['military', 'resource', 'active'];
+
+const ENABLE_STARLINK = process.env.ENABLE_STARLINK_SATELLITES === 'true';
+
+// Escapes regex metacharacters so add-on-configured extra filters are always
+// matched as literal name prefixes, never interpreted as regex syntax.
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+let extraFiltersRaw;
+try {
+  extraFiltersRaw = JSON.parse(process.env.EXTRA_SATELLITE_FILTERS_JSON || '[]');
+} catch {
+  extraFiltersRaw = [];
+}
+// Normalized (trimmed, uppercased) prefixes — reused by classify() below to
+// bucket each extra filter under its own 'country' rather than lumping them
+// all into 'OTHER'.
+const EXTRA_FILTERS = Array.isArray(extraFiltersRaw)
+  ? extraFiltersRaw.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim().toUpperCase())
+  : [];
 
 const NAME_FILTERS = [
   /^YAOGAN/i, /^GAOFEN/i, /^JILIN/i,
@@ -57,8 +89,9 @@ const NAME_FILTERS = [
   /^GOKTURK/i, /^RASAT/i,
   /^USA[ -]?\d/i,
   /^ZIYUAN/i,
-  /^STARLINK/i,
 ];
+if (ENABLE_STARLINK) NAME_FILTERS.push(/^STARLINK/i);
+for (const prefix of EXTRA_FILTERS) NAME_FILTERS.push(new RegExp('^' + escapeRegExp(prefix), 'i'));
 
 function classify(name) {
   const n = name.toUpperCase();
@@ -81,6 +114,13 @@ function classify(name) {
   // and the entire Starlink constellation together, defeating the point of
   // per-country filtering.
   else if (/^STARLINK/i.test(n)) country = 'STARLINK';
+  else {
+    // Add-on-configured extra filters: bucket each under its own literal
+    // prefix (same reasoning as STARLINK above) rather than 'OTHER', so
+    // every custom-tracked constellation gets an independent toggle too.
+    const extra = EXTRA_FILTERS.find(prefix => n.startsWith(prefix));
+    if (extra) { type = 'custom'; country = extra; }
+  }
 
   return { type, country };
 }

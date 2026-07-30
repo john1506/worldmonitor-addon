@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.22.2
+
+- Starlink satellite tracking (~7,000 extra TLEs) is now off by default
+  via a new `enable_starlink_satellites` option -- it was a real recurring
+  memory/CPU cost on constrained hosts, both in the periodic reseed and in
+  every satellite-list API request re-parsing the full cached set in the
+  long-lived API process. Turn it back on from the add-on configuration
+  panel if you want it.
+- Added `extra_satellite_filters`: an add-on option for tracking any other
+  satellite constellation by name prefix (e.g. `IRIDIUM`, `ONEWEB`) without
+  editing code, each getting its own independently-toggleable bucket.
+- The seed loop now logs each pass's total elapsed time and warns if a
+  pass took longer than the configured seed interval (cycles running
+  back-to-back with no rest gap) -- previously invisible.
+
 ## 1.22.1
 
 - Fixed NASA imagery tiles for Flat Earth View failing to load

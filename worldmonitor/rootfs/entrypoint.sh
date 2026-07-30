@@ -25,10 +25,20 @@ if [ -f "$OPTIONS" ]; then
   SEED_INTERVAL_MINUTES="$(jq -r '.seed_interval_minutes // 30' "$OPTIONS")"
   IMAGERY_WATCH_INTERVAL_MINUTES="$(jq -r '.imagery_watch_interval_minutes // 60' "$OPTIONS")"
   IMAGERY_CACHE_MAX_MB="$(jq -r '.imagery_cache_max_mb // 500' "$OPTIONS")"
+  # seed-satellites.mjs: Starlink (~7,000 satellites in CelesTrak's `active`
+  # group) is a real recurring memory/CPU cost -- every seed cycle filters it
+  # out of the full catalog, and every /api list-satellites request re-parses
+  # and re-maps the whole cached set in the long-lived worldmonitor-api
+  # process. Off by default; ENABLE_STARLINK_SATELLITES=true opts back in.
+  # EXTRA_SATELLITE_FILTERS_JSON: arbitrary additional name-prefix filters
+  # (e.g. ["IRIDIUM","ONEWEB"]) so any constellation can be tracked without
+  # editing the seeder, same idea as extra_env for API keys.
+  ENABLE_STARLINK_SATELLITES="$(jq -r '.enable_starlink_satellites // false' "$OPTIONS")"
+  EXTRA_SATELLITE_FILTERS_JSON="$(jq -c '.extra_satellite_filters // []' "$OPTIONS")"
   export GROQ_API_KEY OPENROUTER_API_KEY AISSTREAM_API_KEY \
     NASA_FIRMS_API_KEY UCDP_ACCESS_TOKEN EIA_API_KEY FRED_API_KEY \
     OPENSKY_CLIENT_ID OPENSKY_CLIENT_SECRET IMAGERY_WATCH_INTERVAL_MINUTES \
-    IMAGERY_CACHE_MAX_MB
+    IMAGERY_CACHE_MAX_MB ENABLE_STARLINK_SATELLITES EXTRA_SATELLITE_FILTERS_JSON
 
   # extra_env: list of "KEY=VALUE" strings for anything not exposed as its
   # own option (NASA_FIRMS_API_KEY, FINNHUB_API_KEY, ACLED_*, etc. — see
@@ -45,6 +55,9 @@ $(jq -r '.extra_env[]? // empty' "$OPTIONS")
 EOF
 else
   SEED_INTERVAL_MINUTES=30
+  ENABLE_STARLINK_SATELLITES=false
+  EXTRA_SATELLITE_FILTERS_JSON='[]'
+  export ENABLE_STARLINK_SATELLITES EXTRA_SATELLITE_FILTERS_JSON
 fi
 
 export SEED_INTERVAL_SECONDS=$((SEED_INTERVAL_MINUTES * 60))
