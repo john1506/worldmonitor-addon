@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.22.3
+
+- Flat Earth View's disc can now be zoomed in closer still -- its zoom
+  range was brought much closer to the 3D globe's in 1.22.1 but was still
+  4x more conservative (8% of radius above center vs. the globe's ~1%).
+  It's now at the same ~1% ratio as the globe. As before, the very
+  closest zoom on the disc will read softer than the equivalent globe
+  zoom since it's one fixed-resolution baked texture, not a real
+  per-zoom tile LOD system.
+
 ## 1.22.2
 
 - Starlink satellite tracking (~7,000 extra TLEs) is now off by default
