@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.23.1
+
+- **Fixed a browser crash on mobile** introduced by 1.23.0's Flat Earth View
+  tile LOD. A single refine could transiently allocate up to ~200MB in
+  fetched patch canvases, on top of the ~200MB the view's three base disc
+  canvases already use -- well past what phone browsers can reliably handle
+  in one tab. The per-refine tile budget is now capped much lower
+  (~48MB across all three layers instead of ~200MB), and LOD is skipped
+  entirely on touch-primary devices (phones/tablets) rather than gambling
+  on a budget that's "probably small enough" for an unknown device -- mobile
+  keeps the pre-1.23.0 fixed-resolution disc, which was never the source of
+  the crash.
+
 ## 1.23.0
 
 - **Flat Earth View's disc now has real zoom-based tile LOD**, matching the
