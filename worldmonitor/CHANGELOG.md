@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.23.0
+
+- **Flat Earth View's disc now has real zoom-based tile LOD**, matching the
+  3D globe's own NASA HD Tiles behavior instead of the fixed-resolution
+  whole-globe bake it's used until now. As you zoom in and settle
+  (debounced ~800ms after you stop scrolling/dragging), it fetches
+  higher-zoom NASA tiles for just the visible region and composites them
+  in -- across all three disc layers (base imagery, city lights, relief
+  shading). NASA GIBS itself is already protected by this add-on's own
+  24h tile disk cache plus standard browser HTTP caching, so this doesn't
+  add new persistent cache infrastructure -- it's scoped to not generating
+  redundant requests during a zoom gesture (debounce, a region-shift
+  guard, and an in-session tile dedup cache). Zooming back out never
+  "un-refines" an already-sharpened region within a session; closing and
+  reopening the view starts fresh.
+
 ## 1.22.3
 
 - Flat Earth View's disc can now be zoomed in closer still -- its zoom
